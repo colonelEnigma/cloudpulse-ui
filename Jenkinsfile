@@ -27,6 +27,41 @@ pipeline {
       }
     }
 
+    stage("Toolchain Preflight") {
+      steps {
+        sh '''
+          set -euo pipefail
+
+          missing=0
+
+          if ! command -v aws >/dev/null 2>&1; then
+            echo "ERROR: aws CLI not found on this Jenkins agent."
+            missing=1
+          fi
+
+          if ! command -v kubectl >/dev/null 2>&1; then
+            echo "ERROR: kubectl not found on this Jenkins agent."
+            missing=1
+          fi
+
+          if ! command -v buildah >/dev/null 2>&1 && ! command -v docker >/dev/null 2>&1; then
+            echo "ERROR: neither buildah nor docker is available on this Jenkins agent."
+            missing=1
+          fi
+
+          if [ "$missing" -ne 0 ]; then
+            echo "Install required tools on the agent (aws, kubectl, and buildah or docker),"
+            echo "or run this job on an agent label that already has them."
+            exit 1
+          fi
+
+          echo "Toolchain preflight passed."
+          aws --version
+          kubectl version --client --output=yaml | head -n 5
+        '''
+      }
+    }
+
     stage("AWS + ECR Login") {
       steps {
         sh '''
