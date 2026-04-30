@@ -81,7 +81,8 @@ export default function App() {
       bgWhite
     />
   );
-  const { token } = useAuth();
+  const { token, user, loading } = useAuth();
+  // debug logs removed
   const [controller, dispatch] = useMaterialUIController();
   const {
     miniSidenav,
@@ -144,12 +145,26 @@ export default function App() {
       }
 
       if (route.route) {
-        const element =
-          route.protected && !token ? (
-            <Navigate to="/authentication/sign-in" replace />
-          ) : (
-            route.component
-          );
+        let element = route.component;
+
+        if (route.protected && !token) {
+          element = <Navigate to="/authentication/sign-in" replace />;
+        } else if (route.adminOnly && (!user || user.role !== "admin")) {
+          // Hide admin-only routes from non-admins by redirecting to dashboard
+          element = <Navigate to="/dashboard" replace />;
+        }
+
+        if (route.route === "/control-panel") {
+          // eslint-disable-next-line no-console
+          console.log("getRoutes control-panel decision:", {
+            routeKey: route.key,
+            protected: route.protected,
+            adminOnly: route.adminOnly,
+            tokenPresent: !!token,
+            userRole: user && user.role,
+            elementIsNavigate: element && element.type === Navigate,
+          });
+        }
 
         return <Route path={route.route} element={element} key={route.key} />;
       }
@@ -180,6 +195,8 @@ export default function App() {
       </Icon>
     </MDBox>
   );
+
+  if (loading) return null;
 
   return direction === "rtl" ? (
     <CacheProvider value={rtlCache}>

@@ -9,6 +9,7 @@ import SignOut from "layouts/authentication/sign-out";
 import Orders from "layouts/orders";
 import Home from "layouts/home";
 import ProductsByCategory from "layouts/home/data/ProductsByCategory";
+import ControlPanel from "layouts/control-panel";
 
 // @mui icons
 import Icon from "@mui/material/Icon";
@@ -67,6 +68,16 @@ const routes = [
     route: "/profile",
     component: <Profile />,
     protected: true,
+  },
+  {
+    type: "collapse",
+    name: "Control Panel",
+    key: "control-panel",
+    icon: <Icon fontSize="small">admin_panel_settings</Icon>,
+    route: "/control-panel/*",
+    component: <ControlPanel />,
+    protected: true,
+    adminOnly: true,
   },
   {
     type: "collapse",

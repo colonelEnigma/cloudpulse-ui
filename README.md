@@ -149,37 +149,11 @@ Audit log of every automated recovery action:
 frontend/
 ├── public/
 ├── src/
-│   ├── api/                  # API client functions (Axios)
-│   │   ├── services.ts       # Service health endpoints
-│   │   ├── alerts.ts         # Prometheus alert endpoints
-│   │   ├── kafka.ts          # Kafka metrics endpoints
-│   │   └── orders.ts         # Order tracking endpoints
-│   ├── components/
-│   │   ├── ServiceCard/      # Health card per microservice
-│   │   ├── AlertFeed/        # Live alert list
-│   │   ├── KafkaMonitor/     # Topic + consumer lag view
-│   │   ├── OrderTimeline/    # Order lifecycle trace
-│   │   ├── HealerLog/        # Healer activity audit
-│   │   └── shared/           # Buttons, badges, layout
-│   ├── pages/
-│   │   ├── Dashboard.tsx
-│   │   ├── Alerts.tsx
-│   │   ├── Kafka.tsx
-│   │   ├── OrderTracker.tsx
-│   │   ├── Healer.tsx
-│   │   └── Settings.tsx
-│   ├── hooks/                # Custom React hooks
-│   ├── store/                # Zustand global state
-│   ├── types/                # TypeScript interfaces
-│   ├── utils/                # Helpers and formatters
-│   ├── App.tsx
-│   └── main.tsx
-├── Dockerfile
-├── docker-compose.yml
-├── vite.config.ts
-├── tailwind.config.ts
-├── tsconfig.json
-└── package.json
+│   ├── services/
+│   │   ├── api.js
+│   │   ├── authservice.js
+│   │   ├── orderservice.js
+│   │   ├── paymentservice.js
 ```
 
 ---

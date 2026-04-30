@@ -59,7 +59,7 @@ function Basic() {
     e.preventDefault();
 
     try {
-      const res = await axios.post(`${API_URLS.USER}/users/login`, {
+      const res = await axios.post(`${API_URLS.USER}/api/users/login`, {
         email,
         password,
       });

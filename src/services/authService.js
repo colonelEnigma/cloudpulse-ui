@@ -12,7 +12,7 @@ export const registerUser = async (data) => {
 
 export const loginUser = async (data) => {
   try {
-    const response = await API.post("/login", data);
+    const response = await userApi.post("/users/login", data);
     return response.data;
   } catch (error) {
     console.error("Login Error:", error.response?.data || error.message);
