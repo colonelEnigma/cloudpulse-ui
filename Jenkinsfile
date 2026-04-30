@@ -100,14 +100,9 @@ spec:
             missing=1
           fi
 
-          if ! command -v buildah >/dev/null 2>&1 && ! command -v docker >/dev/null 2>&1; then
-            echo "ERROR: neither buildah nor docker is available on this Jenkins agent."
-            missing=1
-          fi
-
           if [ "$missing" -ne 0 ]; then
-            echo "Install required tools on the agent (aws, kubectl, and buildah or docker),"
-            echo "or run this job on an agent label that already has them."
+            echo "Install required tools on the agent (aws and kubectl),"
+            echo "or run this job on an agent image that already has them."
             exit 1
           fi
 
@@ -141,15 +136,8 @@ spec:
           #!/usr/bin/env bash
           set -euo pipefail
 
-          PASSWORD="$(aws ecr get-login-password --region "$AWS_REGION")"
-
-          if command -v buildah >/dev/null 2>&1; then
-            echo "$PASSWORD" | buildah login --username AWS --password-stdin "$ECR_REGISTRY"
-          fi
-
-          if command -v docker >/dev/null 2>&1; then
-            echo "$PASSWORD" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
-          fi
+          aws ecr get-login-password --region "$AWS_REGION" >/dev/null
+          echo "ECR token retrieval successful."
         '''
       }
     }
@@ -163,35 +151,53 @@ apiVersion: v1
 kind: Pod
 spec:
   serviceAccountName: jenkins-deployer
+  volumes:
+    - name: shared-auth
+      emptyDir: {}
   containers:
     - name: devops
       image: 348071628290.dkr.ecr.ap-south-1.amazonaws.com/jenkins-agent-devops:latest
       command:
         - cat
       tty: true
+      volumeMounts:
+        - name: shared-auth
+          mountPath: /shared-auth
+    - name: buildah
+      image: quay.io/buildah/stable:latest
+      command:
+        - cat
+      tty: true
+      securityContext:
+        privileged: true
+      volumeMounts:
+        - name: shared-auth
+          mountPath: /shared-auth
 '''
         }
       }
       steps {
-        sh '''
-          #!/usr/bin/env bash
-          set -euo pipefail
+        container("devops") {
+          sh '''
+            #!/usr/bin/env bash
+            set -euo pipefail
+            mkdir -p /shared-auth
+            aws ecr get-login-password --region "$AWS_REGION" > /shared-auth/ecr-password
+          '''
+        }
+        container("buildah") {
+          sh '''
+            #!/usr/bin/env bash
+            set -euo pipefail
 
-          FULL_IMAGE="${IMAGE_URI}:${IMAGE_TAG}"
+            FULL_IMAGE="${IMAGE_URI}:${IMAGE_TAG}"
+            export REGISTRY_AUTH_FILE=/tmp/auth.json
 
-          if command -v buildah >/dev/null 2>&1; then
-            echo "Using Buildah for image build and push"
+            cat /shared-auth/ecr-password | buildah login --username AWS --password-stdin "$ECR_REGISTRY"
             buildah bud --format docker -f Dockerfile -t "$FULL_IMAGE" .
             buildah push "$FULL_IMAGE" "docker://$FULL_IMAGE"
-          elif command -v docker >/dev/null 2>&1; then
-            echo "Using Docker for image build and push"
-            docker build -t "$FULL_IMAGE" .
-            docker push "$FULL_IMAGE"
-          else
-            echo "Neither buildah nor docker is available"
-            exit 1
-          fi
-        '''
+          '''
+        }
       }
     }
 
