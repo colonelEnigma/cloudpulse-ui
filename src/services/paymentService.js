@@ -1,12 +1,10 @@
 import { paymentApi } from "./api";
 
-export async function getPayment(id) {
+export async function getPaymentByOrderId(orderId) {
   try {
-    const response = await paymentApi.get(`/api/payment/${id}`);
-    // axios automatically parses JSON, so use response.data
+    const response = await paymentApi.get(`/api/payment/${orderId}`);
     return response.data;
   } catch (error) {
-    // console.error("Error fetching payment:", error);
-    throw new Error("Failed to fetch payment");
+    throw error;
   }
 }

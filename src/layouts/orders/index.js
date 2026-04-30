@@ -11,48 +11,69 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import Button from "@mui/material/Button";
-
-import { getOrders } from "../../services/orderService";
-import { getPayment } from "../../services/paymentService";
-import ordersDialog from "./data/style";
 import MenuItem from "@mui/material/MenuItem";
+
+import { getOrders, initSocket } from "../../services/orderService";
+import { getPaymentByOrderId } from "../../services/paymentService";
+import ordersDialog from "./data/style";
 import menuItem from "examples/Items/NotificationItem/styles";
-import { initSocket } from "../../services/orderService";
+
+function resolveOrderId(order) {
+  return order?.id || order?.order_id || order?.orderId || null;
+}
+
+function normalizeOrder(order) {
+  return {
+    ...order,
+    id: resolveOrderId(order),
+    status: order?.status || order?.orderStatus || "-",
+    total_amount: order?.total_amount ?? order?.totalAmount ?? order?.amount ?? 0,
+    created_at: order?.created_at || order?.createdAt || null,
+    items: Array.isArray(order?.items) ? order.items : [],
+  };
+}
+
+function resolvePaymentStatus(payload) {
+  return (
+    payload?.status ||
+    payload?.payment?.status ||
+    payload?.data?.status ||
+    payload?.paymentStatus ||
+    payload?.payment_status ||
+    null
+  );
+}
 
 function Orders() {
   const [open, setOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [rows, setRows] = useState([]);
 
-  const formatOrderRow = (order) => ({
-    id: order.id,
-    status: order.status,
-    total: order.total_amount,
-    created: new Date(order.created_at).toLocaleString(),
-    action: (
-      <MDTypography
-        component="a"
-        href="#"
-        variant="caption"
-        color="info"
-        fontWeight="medium"
-        onClick={() => handleOpen(order)}
-        sx={{ cursor: "pointer" }}
-      >
-        View
-      </MDTypography>
-    ),
-  });
+  const handleOpen = async (rawOrder) => {
+    const order = normalizeOrder(rawOrder);
 
-  const handleOpen = async (order) => {
+    setSelectedOrder({ ...order, paymentStatus: "Loading..." });
+    setOpen(true);
+
+    if (!order.id) {
+      setSelectedOrder((previous) =>
+        previous ? { ...previous, paymentStatus: "Unavailable" } : previous
+      );
+      return;
+    }
+
     try {
-      const paymentDetails = await getPayment(order.id);
-      const paymentStatus = paymentDetails?.status || "pending";
-      setSelectedOrder({ ...order, paymentStatus });
-      setOpen(true);
-    } catch {
-      setSelectedOrder({ ...order, paymentStatus: "pending" });
-      setOpen(true);
+      const paymentDetails = await getPaymentByOrderId(order.id);
+      const paymentStatus = resolvePaymentStatus(paymentDetails);
+
+      setSelectedOrder((previous) =>
+        previous ? { ...previous, paymentStatus: paymentStatus || "Unavailable" } : previous
+      );
+    } catch (error) {
+      const fallbackStatus = error?.response?.status === 404 ? "Not Found" : "Unavailable";
+      setSelectedOrder((previous) =>
+        previous ? { ...previous, paymentStatus: fallbackStatus } : previous
+      );
     }
   };
 
@@ -61,18 +82,38 @@ function Orders() {
     setSelectedOrder(null);
   };
 
+  const formatOrderRow = (rawOrder) => {
+    const order = normalizeOrder(rawOrder);
+
+    return {
+      id: order.id || "-",
+      status: order.status,
+      total: order.total_amount,
+      created: order.created_at ? new Date(order.created_at).toLocaleString() : "-",
+      action: (
+        <MDTypography
+          component="a"
+          href="#"
+          variant="caption"
+          color="info"
+          fontWeight="medium"
+          onClick={() => handleOpen(order)}
+          sx={{ cursor: "pointer" }}
+        >
+          View
+        </MDTypography>
+      ),
+    };
+  };
+
   useEffect(() => {
-    // Initial fetch
     getOrders().then((data) => {
       setRows(data.map(formatOrderRow));
     });
 
-    // Initialize socket
     const socket = initSocket();
-
     socket.on("order_created", (newOrder) => {
-      console.log("New order received:", newOrder);
-      setRows((prev) => [formatOrderRow(newOrder), ...prev]);
+      setRows((previous) => [formatOrderRow(newOrder), ...previous]);
     });
 
     return () => {
@@ -124,7 +165,6 @@ function Orders() {
         </Grid>
       </MDBox>
 
-      {/* Dialog */}
       <MenuItem sx={(theme) => menuItem(theme)}>
         <Dialog open={open} onClose={handleClose}>
           <DialogTitle>Order Details</DialogTitle>
@@ -141,14 +181,17 @@ function Orders() {
                   <strong>Total:</strong> {selectedOrder.total_amount}
                 </MDTypography>
                 <MDTypography variant="body1" color="secondary">
-                  <strong>Created:</strong> {new Date(selectedOrder.created_at).toLocaleString()}
+                  <strong>Created:</strong>{" "}
+                  {selectedOrder.created_at
+                    ? new Date(selectedOrder.created_at).toLocaleString()
+                    : "-"}
                 </MDTypography>
                 <MDTypography variant="body1" color="secondary">
                   <strong>Items:</strong>
                 </MDTypography>
                 {selectedOrder.items.map((item, idx) => (
                   <MDTypography key={idx} variant="body1" color="secondary">
-                    Product {item.product_id} — Qty: {item.quantity} — Price: {item.price}
+                    Product {item.product_id} - Qty: {item.quantity} - Price: {item.price}
                   </MDTypography>
                 ))}
                 {selectedOrder.paymentStatus && (

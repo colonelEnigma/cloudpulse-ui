@@ -16,7 +16,6 @@ import ButtonBase from "@mui/material/ButtonBase";
 import CategoryCard from "./data/CategoryCard";
 
 import { getProducts } from "../../services/productService";
-import { getPayment } from "../../services/paymentService";
 import MenuItem from "@mui/material/MenuItem";
 import menuItem from "examples/Items/NotificationItem/styles";
 import { useNavigate } from "react-router-dom";
