@@ -231,6 +231,20 @@ spec:
 
           INGRESS_FILE="k8s/frontend/ingress.yml"
           SHOULD_APPLY="false"
+          CAN_MANAGE_INGRESS="true"
+
+          for verb in get create patch update; do
+            if ! kubectl auth can-i "$verb" ingresses.networking.k8s.io -n "$K8S_NAMESPACE" >/dev/null; then
+              CAN_MANAGE_INGRESS="false"
+              break
+            fi
+          done
+
+          if [ "$CAN_MANAGE_INGRESS" != "true" ]; then
+            echo "Skipping ingress apply: service account lacks ingress RBAC in namespace '$K8S_NAMESPACE'."
+            echo "Required verbs: get, create, patch, update on ingresses.networking.k8s.io"
+            exit 0
+          fi
 
           if [ -z "${GIT_PREVIOUS_SUCCESSFUL_COMMIT:-}" ]; then
             SHOULD_APPLY="true"
