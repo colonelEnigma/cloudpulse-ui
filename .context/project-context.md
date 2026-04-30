@@ -1,6 +1,6 @@
 # Self-Healing Cloud Platform - Project Context And Rules
 
-> Last updated: 2026-04-29
+> Last updated: 2026-04-30
 > Purpose: source-of-truth project note for architecture, current state, naming, environments, deployment flow, observability, self-healing, known issues, and next work.
 
 ---
@@ -105,7 +105,7 @@ Do not move shared infrastructure into `dev`, `test`, or `prod` unless explicitl
 | `product-service` | products/inventory | dev/test/prod | 3005 |
 | `search-service` | search/indexing | dev/test/prod | 5003 |
 | `healer-service` | alert webhook and recovery | default | 7000 |
-| `control-plane-service` | planned admin-only platform control/read model | monitoring | TBD |
+| `control-plane-service` | admin-only platform control/read model with live diagnostics + guarded scale audit | monitoring, local Docker Compose | 7100 local |
 
 Other ports:
 
@@ -433,8 +433,8 @@ docs/control-plane-frontend-plan.md
 
 Planning rules:
 
-- Backend implementation comes before frontend implementation.
-- Frontend planning is now captured, but frontend implementation starts after backend behavior is verified.
+- Backend implementation comes before frontend live data/action integration.
+- Frontend planning is captured, and UI-only scaffolding has started in `cloudpulse-ui`; live Control Panel integration starts after backend behavior is verified.
 - The frontend remains prod-facing and user-centric.
 - The Control Panel will be hidden unless `user.role === "admin"`.
 - Control Panel V1 is prod-focused only.
@@ -455,8 +455,9 @@ Frontend plan:
 - Control Panel pages are Overview, Services, Logs, Incidents, and Audit.
 - Frontend API integration should use prod ingress-relative `/api/...` paths when deployed.
 - Auth must load profile after login so `user.role` can gate the Control Panel tab.
+- UI-only Control Panel scaffolding exists in `cloudpulse-ui` under `src/layouts/control-panel/`; it must remain placeholder/live-integration-ready until backend APIs are complete.
 
-Planned `user-service` changes:
+Implemented `user-service` changes:
 
 - Add `role VARCHAR(20) DEFAULT 'user'`.
 - Include `role` in JWT payload.
@@ -465,13 +466,22 @@ Planned `user-service` changes:
 - Do not allow profile updates to change `role`.
 - Bootstrap the first admin manually with SQL.
 
-Planned new service:
+Created new service:
 
 ```text
 services/control-plane-service
 ```
 
-Responsibilities:
+Current local `control-plane-service` state:
+
+- Runs locally through Docker Compose on port `7100`.
+- Exposes public `/health` and `/metrics`.
+- Protects `/api/control-plane/*` with JWT auth and `role === "admin"`.
+- Uses a prod app deployment allowlist for service-specific routes.
+- Provides implemented `GET /api/control-plane/status`.
+- Provides implemented live read routes plus guarded scale `0/1` actions with typed confirmation and audit logging.
+
+Target responsibilities:
 
 - Admin JWT enforcement for all `/api/control-plane/*` routes.
 - Live prod deployment and pod status.
@@ -482,7 +492,7 @@ Responsibilities:
 - healer-service `/history` read model.
 - Manual action audit through `controlplanedb.control_plane_actions`.
 
-Planned prod-only RBAC for `control-plane-service`:
+Implemented prod-only RBAC scope for `control-plane-service`:
 
 - `get/list/watch` deployments, pods, replicasets, and events in `prod`.
 - `get` pods/log in `prod`.
@@ -490,9 +500,27 @@ Planned prod-only RBAC for `control-plane-service`:
 - No secrets access.
 - No delete, create, namespace, PVC, Kafka, PostgreSQL application-data, Jenkins, Grafana, Prometheus, or Alertmanager mutation permissions.
 
+Current implemented route surface:
+
+```text
+GET  /health
+GET  /metrics
+GET  /api/control-plane/status
+GET  /api/control-plane/overview              -> implemented
+GET  /api/control-plane/deployments           -> implemented
+GET  /api/control-plane/services/:service     -> implemented, allowlist guarded
+GET  /api/control-plane/healing-history       -> implemented
+GET  /api/control-plane/alerts                -> implemented
+GET  /api/control-plane/logs                  -> implemented
+GET  /api/control-plane/logs/:service         -> implemented, allowlist guarded
+GET  /api/control-plane/events/:service       -> implemented, allowlist guarded
+POST /api/control-plane/actions/scale         -> implemented, guarded + audited
+GET  /api/control-plane/actions               -> implemented
+```
+
 Other phases are backlog/pipeline until backend implementation is verified:
 
-- Frontend implementation and deployment integration.
+- Frontend live API integration and deployment integration.
 - Demo polish and screenshots.
 - Observability polish.
 - Warm pause scripts.
@@ -596,21 +624,21 @@ Completed recently:
 - Services promoted through the new flow were verified healthy in `prod`.
 - Baseline secrets, probes/resources, and SLO/alert hardening were completed per operator update.
 - Control Plane frontend planning was captured for the existing `cloudpulse-ui` Creative Tim React app.
+- `user-service` role support was implemented and locally verified; login/profile now expose `role`.
+- A local admin user was bootstrapped manually with SQL for Control Plane testing.
+- `services/control-plane-service` was implemented with admin JWT enforcement, live prod reads, guarded scale `0/1`, and audit history.
+- Local `control-plane-service` was added to Docker Compose on port `7100`.
+- `product-service` and `order-service` now start HTTP before Kafka connection so read endpoints stay available while Kafka starts.
 
 Active next phase:
 
-1. Implement `user-service` role support and first-admin bootstrap documentation.
-2. Create `services/control-plane-service`.
-3. Add `controlplanedb` and `control_plane_actions`.
-4. Add prod-only `control-plane-service` RBAC.
-5. Implement live read-only Control Panel APIs.
-6. Implement guarded prod scale `0/1` actions with typed confirmation and audit.
-7. Verify auth, live data, logs, actions, and RBAC safety.
-8. After backend behavior is verified, integrate the `cloudpulse-ui` frontend from `.context/control-plane-frontend-plan.md`.
+1. Capture final verification evidence for auth, live data, logs, actions, and RBAC safety.
+2. Publish Control Plane runbook/API docs.
+3. Connect the `cloudpulse-ui` Control Panel UI to live backend APIs from `.context/control-plane-frontend-plan.md`.
 
 Backlog/pipeline until the Control Plane backend is verified:
 
-- Frontend implementation and deployment integration.
+- Frontend live API integration and deployment integration.
 - Final project demo assets and README walkthrough.
 - Screenshots for Grafana, Jenkins promotion, Slack alerting, healer history, and Control Panel.
 - Demo polish.
@@ -652,4 +680,4 @@ Do not:
 
 ## 17. One-Line Summary
 
-This project is a versioned, Jenkins-driven, multi-environment EKS microservices platform with Kafka event streaming, Prometheus/Grafana/Alertmanager observability, Git-provisioned Grafana dashboards, Slack alerting, rollback, verified policy-based self-healing in `dev` and `prod` with audit history, an active next phase to implement a narrowly guarded admin-only Control Plane backend, and a captured frontend plan for the existing `cloudpulse-ui` Creative Tim React app.
+This project is a versioned, Jenkins-driven, multi-environment EKS microservices platform with Kafka event streaming, Prometheus/Grafana/Alertmanager observability, Git-provisioned Grafana dashboards, Slack alerting, rollback, verified policy-based self-healing in `dev` and `prod` with audit history, implemented `user-service` role support, an implemented admin-only `control-plane-service` (local + cluster) with live reads and guarded scale audit, and UI-only Control Panel scaffolding in the existing `cloudpulse-ui` Creative Tim React app.

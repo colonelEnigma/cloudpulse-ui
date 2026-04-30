@@ -1,12 +1,12 @@
 # Project Handoff Summary
 
-Last updated: 2026-04-29
+Last updated: 2026-04-30
 
 ## Current State
 
 This repository is a Jenkins-driven, multi-environment EKS microservices platform with:
 
-- Node.js/Express microservices for users, orders, payments, products, search, and healing.
+- Node.js/Express microservices for users, orders, payments, products, search, healing, and an implemented Control Plane service (local + cluster).
 - Kubernetes namespaces for `dev`, `test`, and `prod`.
 - Shared Kafka, Zookeeper, PostgreSQL, Prometheus, Alertmanager, and healer-service in `default`.
 - Jenkins builds changed services once, deploys to `dev` and `test`, and promotes existing image tags to `prod` through `jenkins/promotion.env`.
@@ -19,13 +19,13 @@ This repository is a Jenkins-driven, multi-environment EKS microservices platfor
 
 ## Current Planning Focus
 
-The active next phase is Control Plane backend implementation. Frontend planning is captured, but frontend implementation comes after backend behavior is verified.
+The active next phase is Control Plane end-to-end completion: finalize backend verification evidence and wire the existing frontend Control Panel scaffolding to live backend APIs.
 
 - Frontend remains prod-facing and user-centric.
 - Existing frontend foundation is `C:\Users\ranja\Documents\projects\cloudpulse-ui`.
 - Control Panel will be part of the main frontend as an admin-only top tab hidden unless `user.role === "admin"`.
-- Backend implementation must happen before frontend implementation.
-- Frontend implementation should consume `.context/control-plane-frontend-plan.md` after backend APIs are verified.
+- Backend implementation is in place; current focus is verification hardening and frontend live data/action integration.
+- Frontend live integration should follow `.context/control-plane-frontend-plan.md` against the implemented backend API contract.
 - Control Plane V1 uses live prod data, not mocks.
 - Control Plane V1 supports guarded prod service Down/Up demo actions by scaling allowlisted app deployments to `0` or `1`.
 - All manual Control Panel actions must be audited.
@@ -67,12 +67,13 @@ allowedNamespaces: ["dev", "prod"]
 - `docs/control-plane-backend-plan.md` was added as the docs-facing planning reference.
 - Control Plane frontend planning was captured in `.context/control-plane-frontend-plan.md`.
 - `docs/control-plane-frontend-plan.md` was added as the docs-facing planning reference.
- - Control Panel frontend UI scaffolding was implemented (UI-only) and committed to the frontend repo on 2026-04-30. Changes include:
-   - `src/layouts/control-panel/*`: `index.js`, `Overview.js`, `Services.js`, `ServiceDetail.js`, `Logs.js`, `Incidents.js`, `Audit.js` (UI-only pages and navigation).
-   - Route updated to `/control-panel/*` to support nested Control Panel routes.
-   - `AuthProvider` updates: normalization of wrapped profile responses from localStorage/API, and `loading` initialization when a token exists but profile is not yet loaded to avoid premature redirecting.
-   - `src/services/authService.js` login helper updated to use ingress-relative `/api/users/login` via `userApi`.
-   - ESLint/Prettier auto-fixes applied and temporary debug logs removed after verification.
+- `user-service` role support was implemented and locally verified; JWT login and profile now expose `role`.
+- A local admin user was bootstrapped manually with SQL for Control Plane testing.
+- `services/control-plane-service` was implemented with Express, JWT auth, admin-only middleware, allowlist middleware, `/health`, `/metrics`, and full `/api/control-plane/*` live read + guarded action routes.
+- `docker-compose.yml` now runs `control-plane-service` locally on port `7100`.
+- `docker-compose.yml` was updated with missing local Kafka/order env wiring for payment and search.
+- `product-service` and `order-service` now start HTTP before Kafka connection so read endpoints remain reachable while Kafka starts.
+- In the separate `cloudpulse-ui` repo, Control Panel UI-only scaffolding was added for Overview, Services, Logs, Incidents, and Audit; live API wiring remains deferred until backend APIs are ready.
 
 ## Verified Behavior
 
@@ -108,6 +109,33 @@ Jenkins Git-controlled promotion was validated successfully:
 - Tested promoted services were healthy in `prod`.
 - `payment-service` logs showed successful PostgreSQL connection, Kafka connection, prod topic subscription, and consumer group join.
 
+Control Plane backend validation was completed for the current slice:
+
+- `GET http://localhost:7100/health` works for `control-plane-service`.
+- `GET /api/control-plane/status` is implemented behind JWT and admin role enforcement.
+- Live Control Plane routes are implemented for overview, deployments, service detail, healing history, alerts, logs, events, guarded scale, and action audit history.
+- `GET http://localhost:3005/api/products` returns live local product data.
+- `GET http://localhost:3003/health` returns order-service health.
+- `GET http://localhost:3003/api/orders/my-orders` reaches order-service and returns auth behavior instead of connection refused.
+
+Current local Control Plane route surface:
+
+```text
+GET  /health
+GET  /metrics
+GET  /api/control-plane/status
+GET  /api/control-plane/overview              -> implemented (prod overview + health/alerts/history/audit summary)
+GET  /api/control-plane/deployments           -> implemented (allowlisted prod deployment state)
+GET  /api/control-plane/services/:service     -> implemented, allowlist guarded
+GET  /api/control-plane/healing-history       -> implemented (healer history read)
+GET  /api/control-plane/alerts                -> implemented (Prometheus alert-style state)
+GET  /api/control-plane/logs                  -> implemented (combined bounded logs)
+GET  /api/control-plane/logs/:service         -> implemented, allowlist guarded
+GET  /api/control-plane/events/:service       -> implemented, allowlist guarded
+POST /api/control-plane/actions/scale         -> implemented (prod+allowlist+0/1+typed confirmation+audit)
+GET  /api/control-plane/actions               -> implemented (manual action audit history)
+```
+
 ## Important Files
 
 - `prometheus-values.yaml`: active Prometheus and Alertmanager source of truth.
@@ -124,7 +152,10 @@ Jenkins Git-controlled promotion was validated successfully:
 - `docs/control-plane-backend-plan.md`: docs-facing reference for the planned Control Plane backend.
 - `docs/control-plane-frontend-plan.md`: docs-facing reference for the planned Control Plane frontend.
 - `.context/control-plane-backend-plan.md`: canonical planning handoff for Control Plane backend implementation.
-- `.context/control-plane-frontend-plan.md`: canonical planning handoff for deferred frontend implementation.
+- `.context/control-plane-frontend-plan.md`: canonical frontend handoff for existing UI-only scaffolding and deferred live integration.
+- `services/control-plane-service/`: implemented Control Plane backend service.
+- `services/control-plane-service/src/routes/controlPlaneRoutes.js`: current implemented Control Plane route surface.
+- `services/control-plane-service/src/config/allowlist.js`: prod namespace and allowlisted app deployments.
 - `jenkins/promotion.env`: controlled promotion configuration.
 - `jenkins/rollback.env`: controlled rollback configuration.
 
@@ -135,26 +166,19 @@ Jenkins Git-controlled promotion was validated successfully:
 - Grafana persistence is disabled; provisioned dashboards survive through Git/Helm, but UI-only edits can be lost on pod replacement.
 - Grafana PostgreSQL datasource depends on Secret `grafana-postgres-datasource` in namespace `monitoring`.
 - Jenkins UI approval buttons were unreliable, so prod promotion now uses Git commits through `jenkins/promotion.env`.
-- Control Plane backend is planned but not implemented yet.
-- `user-service` does not yet have `role` support for admin-only Control Panel visibility.
-- `controlplanedb`, `control_plane_actions`, and prod-only `control-plane-service` RBAC are planned but not implemented yet.
+- Control Plane backend core implementation is complete and deployed; remaining work is verification evidence capture, runbook/API documentation, and frontend live integration.
 - `cloudpulse-ui` is a separate frontend repo; no monorepo migration is planned unless explicitly requested.
-- Frontend API integration still needs cleanup when implementation begins, including ingress-relative `/api/...` paths, auth path consistency, and loading profile/role after login.
+- Frontend live API integration still needs cleanup when integration resumes, including ingress-relative `/api/...` paths, auth path consistency, and loading profile/role after login.
 
 ## Next Steps
 
-1. Add `user-service` role support and manually bootstrap the first admin with SQL.
-2. Create `services/control-plane-service` with admin JWT enforcement.
-3. Add `controlplanedb.control_plane_actions` for manual action audit.
-4. Add prod-only RBAC for live reads, logs, events, and deployment patch only.
-5. Implement live read-only APIs before guarded scale actions.
-6. Implement typed-confirmed scale `0/1` actions for allowlisted prod app deployments.
-7. Verify auth, live data, logs, actions, and RBAC safety.
-8. After backend behavior is verified, integrate `cloudpulse-ui` from `.context/control-plane-frontend-plan.md`.
+1. Capture final verification evidence for auth, live data, logs, actions, and RBAC safety.
+2. Publish `docs/control-plane-runbook.md` and `docs/control-plane-api.md`.
+3. Connect `cloudpulse-ui` Control Panel UI to the live `/api/control-plane/*` backend APIs.
 
 ## Backlog / Pipeline
 
-- Frontend implementation and deployment integration after backend behavior is verified.
+- Frontend live API integration and deployment integration after backend behavior is verified.
 - Final project demo assets and README walkthrough.
 - Screenshots for Grafana, Jenkins promotion, Slack alerting, healer history, and Control Panel.
 - Demo polish.

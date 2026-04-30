@@ -1,8 +1,8 @@
 # Control Plane Backend Plan
 
-Last updated: 2026-04-29
+Last updated: 2026-04-30
 
-Status: active backend implementation handoff. Backend implementation comes before frontend implementation; frontend planning is captured in `.context/control-plane-frontend-plan.md`.
+Status: active backend verification handoff. Core backend implementation is in place; frontend live data/action integration should proceed against this contract and `.context/control-plane-frontend-plan.md`.
 
 ## Purpose
 
@@ -14,8 +14,8 @@ This is not a mock UI phase. The Control Panel should show real prod deployment 
 
 - The main frontend remains prod-facing for normal users.
 - The Control Panel is part of the main frontend but hidden unless `user.role === "admin"`.
-- Backend implementation must be completed and verified before frontend implementation starts.
-- Frontend implementation should consume `.context/control-plane-frontend-plan.md` after this backend contract is available.
+- Backend implementation is in place; verification and frontend live integration proceed next.
+- Frontend live integration should consume `.context/control-plane-frontend-plan.md` after this backend contract is available.
 - Control Panel V1 is prod-focused only.
 - Control Panel data is live, not mocked.
 - V1 mutation is limited to scaling allowlisted prod app deployments to `0` or `1`.
@@ -23,18 +23,44 @@ This is not a mock UI phase. The Control Panel should show real prod deployment 
 - Every manual action must be audited.
 - Other services do not need V1 feature changes except `user-service` role support.
 
+## Current Implementation Progress
+
+Completed:
+
+- `user-service` role support is implemented and verified.
+- JWT login now returns `role`.
+- `/api/users/profile` returns `role`.
+- Profile update does not allow `role` mutation.
+- One local user was manually promoted to `admin` with SQL for testing.
+- `services/control-plane-service` has been created and is deployed in namespace `monitoring`.
+- `control-plane-service` runs locally on port `7100` through Docker Compose for local API tests.
+- `control-plane-service` has `/health`, `/metrics`, JWT auth, admin-only middleware, service allowlist middleware, and a fully implemented `/api/control-plane/*` route surface.
+- `GET /api/control-plane/status` returns readiness, namespace scope, and the allowlisted deployments for admin JWTs.
+- Live read APIs are implemented for overview, deployments, service detail, logs, events, Prometheus alerts, and healer history.
+- Guarded scale `0/1` is implemented with typed confirmation and audit logging.
+- `controlplanedb` + `control_plane_actions` initialization is implemented.
+- Kubernetes manifests, prod-only RBAC, and Jenkins deployment integration are implemented for `control-plane-service`.
+- Local `product-service` and `order-service` now start HTTP before Kafka connection, so read endpoints remain reachable while Kafka starts.
+- Separate frontend repo `cloudpulse-ui` now has UI-only Control Panel scaffolding; live Control Panel data and action wiring remain blocked on backend APIs.
+
+Still pending:
+
+- Final backend verification evidence capture (auth, logs, actions, and RBAC `can-i` checks).
+- Backend runbook/API docs publication (`docs/control-plane-runbook.md`, `docs/control-plane-api.md`).
+- Frontend live data/action integration in `cloudpulse-ui`.
+
 ## Existing Service Changes
 
 ### user-service
 
-Planned changes:
+Implemented changes:
 
 - Add `role VARCHAR(20) DEFAULT 'user'` to the `users` table.
 - Keep registration default as `user`.
 - Include `role` in the JWT payload.
 - Include `role` in the profile response.
 - Do not allow profile update endpoints to change `role`.
-- Bootstrap the first admin manually with SQL after deployment.
+- Bootstrap the first admin manually with SQL after deployment or local DB setup.
 
 Example first-admin bootstrap:
 
@@ -58,13 +84,13 @@ The Control Plane should read existing service state through Kubernetes, Prometh
 
 ## New Service
 
-Create:
+Created:
 
 ```text
 services/control-plane-service
 ```
 
-Expected stack:
+Current stack:
 
 - Node.js
 - Express
@@ -86,26 +112,38 @@ Primary integrations:
 - healer-service `/history` for self-healing audit history.
 - `controlplanedb` for manual Control Panel action audit.
 
-## API Sketch
+## Implemented Route Surface
 
-All routes are under:
+Public service routes:
+
+| Method | Path | Current behavior |
+|---|---|---|
+| `GET` | `/health` | Implemented; returns service health |
+| `GET` | `/metrics` | Implemented; returns Prometheus metrics |
+
+All Control Plane routes are under:
 
 ```text
 /api/control-plane
 ```
 
-| Method | Path | Purpose |
+| Method | Path | Current behavior |
 |---|---|---|
-| `GET` | `/api/control-plane/overview` | Summary of prod platform health, service counts, degraded services, active alerts, and recent actions |
-| `GET` | `/api/control-plane/deployments` | Prod app deployments with image tag, desired replicas, ready replicas, pod readiness, and age |
-| `GET` | `/api/control-plane/services/:service` | One prod service detail view with deployment, pods, image, events, health, and recent logs |
-| `GET` | `/api/control-plane/healing-history` | Recent healer actions from healer-service `/history`, filtered to prod where possible |
-| `GET` | `/api/control-plane/alerts` | Prometheus-derived prod alert and health state |
-| `GET` | `/api/control-plane/logs/:service` | Recent logs for one allowlisted prod app service |
-| `GET` | `/api/control-plane/logs` | Combined recent logs for all allowlisted prod app services |
-| `GET` | `/api/control-plane/events/:service` | Recent Kubernetes events and diagnostics for one allowlisted prod app service |
-| `POST` | `/api/control-plane/actions/scale` | Guarded Down/Up demo action for prod service scale `0` or `1` |
-| `GET` | `/api/control-plane/actions` | Manual Control Panel action audit history |
+| `GET` | `/api/control-plane/status` | Implemented; admin-only readiness response with `namespaceScope=prod` and allowlisted deployments |
+| `GET` | `/api/control-plane/overview` | Implemented; returns prod summary, deployments, Prometheus health, alerts, healer history, and recent manual actions |
+| `GET` | `/api/control-plane/deployments` | Implemented; returns allowlisted prod deployment state and health summary |
+| `GET` | `/api/control-plane/services/:service` | Implemented with allowlist guard; returns per-service deployment details, ReplicaSets, events, logs/health context |
+| `GET` | `/api/control-plane/healing-history` | Implemented; returns healer-service `/history` data scoped to prod/allowlist |
+| `GET` | `/api/control-plane/alerts` | Implemented; returns Prometheus alert-style state scoped to prod/allowlist |
+| `GET` | `/api/control-plane/logs/:service` | Implemented with allowlist guard; returns bounded recent service logs |
+| `GET` | `/api/control-plane/logs` | Implemented; returns bounded combined recent logs for allowlisted prod app services |
+| `GET` | `/api/control-plane/events/:service` | Implemented with allowlist guard; returns Kubernetes events for deployment/pods |
+| `POST` | `/api/control-plane/actions/scale` | Implemented; enforces prod namespace, allowlist, replicas `0/1`, typed confirmation, and audit writes |
+| `GET` | `/api/control-plane/actions` | Implemented; returns paginated manual action audit history |
+
+All `/api/control-plane/*` routes require a valid JWT and `role === "admin"`.
+
+## Target API Behavior
 
 Example scale request:
 
@@ -139,21 +177,21 @@ Control Plane V1 may read and scale only:
 
 Do not expose generic deployment mutation in V1.
 
-## New Database
+## Audit Database
 
-Create:
+Implemented:
 
 ```text
 controlplanedb
 ```
 
-Create audit table:
+Implemented audit table:
 
 ```text
 control_plane_actions
 ```
 
-Planned fields:
+Current fields:
 
 ```text
 id
@@ -284,7 +322,7 @@ Safety:
 
 These are intentionally outside the immediate backend planning scope:
 
-- Frontend implementation.
+- Frontend live data/action integration and deployment.
 - `docs/control-plane-runbook.md`.
 - `docs/control-plane-api.md`.
 - Warm pause scripts.

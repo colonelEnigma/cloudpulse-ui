@@ -2,7 +2,7 @@
 
 Last updated: 2026-04-30
 
-Status: in-progress (UI-only). Frontend implementation has begun with UI scaffolding; backend APIs remain required for live data and guarded actions.
+Status: in-progress (UI-to-live transition). UI scaffolding is in place and backend APIs are implemented; frontend live data integration and guarded action wiring are next.
 
 ## Purpose
 
@@ -101,12 +101,12 @@ Service detail should live under the Services area as a drill-down route or pane
 - Manual Control Panel actions must be audited by the backend.
 - Backend RBAC remains narrow: prod reads/logs/events plus patch deployments only.
 
-## Backend Dependency
+## Backend Readiness
 
-Frontend implementation starts after the backend plan is implemented and verified:
+Frontend live data/action integration now proceeds against the implemented backend contract:
 
-- `user-service` supports `role`, includes it in JWT/profile responses, and keeps registration default as `user`.
-- `control-plane-service` exposes guarded `/api/control-plane/*` APIs.
+- `user-service` supports `role`, includes it in JWT/profile responses, and keeps registration default as `user`. This is locally implemented and verified.
+- `control-plane-service` exposes guarded `/api/control-plane/*` APIs. `/health`, `/metrics`, status/overview/deployments/service-detail/logs/events/alerts/healing-history/actions, and guarded scale `0/1` with typed confirmation + audit are implemented.
 - Control Plane APIs use live prod Kubernetes, Prometheus, healer-service, and audit DB data.
 - Guarded scale `0` or `1` works only for allowlisted prod app deployments.
 - RBAC verification confirms no secrets, deletes, namespace permissions, pod deletion, broad mutation, or non-prod mutation.
@@ -117,8 +117,9 @@ Frontend implementation starts after the backend plan is implemented and verifie
 - Auth handling on the frontend improved to normalize wrapped profile payloads stored in `localStorage` and to wait for profile load when a token exists to avoid redirect races.
 - Routing updated to use `/control-panel/*` so nested routes render correctly.
 - `src/services/authService.js` login helper updated to use ingress-relative `/api/users/login` (backend API endpoint canonicalized).
+- Backend progress: `user-service` role support is verified and `services/control-plane-service` now provides implemented admin-guarded live `/api/control-plane/*` APIs (local on `7100`, cluster in `monitoring`).
 
-Note: These are UI-only changes. Live data, guarded scale actions, and audit persistence await backend implementation in `.context/control-plane-backend-plan.md`.
+Note: These are UI-only changes. Backend APIs are implemented; frontend live data, guarded action wiring, and audit view integration now move from planning to implementation work in `cloudpulse-ui`.
 
 Expected frontend API usage:
 
@@ -157,7 +158,8 @@ Safety:
 
 ## Deferred
 
-- Frontend implementation.
+- Live Control Panel data integration.
+- Guarded scale action UI wiring.
 - Frontend Kubernetes/Jenkins deployment decision.
 - Final visual polish and screenshots.
 - README demo walkthrough updates.

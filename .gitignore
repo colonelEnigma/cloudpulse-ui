@@ -19,3 +19,5 @@ build/
 coverage/
 
 .vscode/
+
+docs/control-plane-backend-plan.md
