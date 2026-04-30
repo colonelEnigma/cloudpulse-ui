@@ -113,35 +113,6 @@ spec:
       }
     }
 
-    stage("AWS + ECR Login") {
-      agent {
-        kubernetes {
-          defaultContainer "devops"
-          yaml '''
-apiVersion: v1
-kind: Pod
-spec:
-  serviceAccountName: jenkins-deployer
-  containers:
-    - name: devops
-      image: 348071628290.dkr.ecr.ap-south-1.amazonaws.com/jenkins-agent-devops:latest
-      command:
-        - cat
-      tty: true
-'''
-        }
-      }
-      steps {
-        sh '''
-          #!/usr/bin/env bash
-          set -euo pipefail
-
-          aws ecr get-login-password --region "$AWS_REGION" >/dev/null
-          echo "ECR token retrieval successful."
-        '''
-      }
-    }
-
     stage("Build & Push") {
       agent {
         kubernetes {
@@ -178,12 +149,18 @@ spec:
       }
       steps {
         container("devops") {
-          sh '''
-            #!/usr/bin/env bash
-            set -euo pipefail
-            mkdir -p /shared-auth
-            aws ecr get-login-password --region "$AWS_REGION" > /shared-auth/ecr-password
-          '''
+          withCredentials([
+            string(credentialsId: "aws-access-key-id", variable: "AWS_ACCESS_KEY_ID"),
+            string(credentialsId: "aws-secret-access-key", variable: "AWS_SECRET_ACCESS_KEY")
+          ]) {
+            sh '''
+              #!/usr/bin/env bash
+              set -euo pipefail
+              mkdir -p /shared-auth
+              aws sts get-caller-identity
+              aws ecr get-login-password --region "$AWS_REGION" > /shared-auth/ecr-password
+            '''
+          }
         }
         container("buildah") {
           sh '''
@@ -195,36 +172,9 @@ spec:
 
             cat /shared-auth/ecr-password | buildah login --username AWS --password-stdin "$ECR_REGISTRY"
             buildah bud --format docker -f Dockerfile -t "$FULL_IMAGE" .
-            buildah push "$FULL_IMAGE" "docker://$FULL_IMAGE"
+            buildah push "$FULL_IMAGE"
           '''
         }
-      }
-    }
-
-    stage("Configure kubectl") {
-      agent {
-        kubernetes {
-          defaultContainer "devops"
-          yaml '''
-apiVersion: v1
-kind: Pod
-spec:
-  serviceAccountName: jenkins-deployer
-  containers:
-    - name: devops
-      image: 348071628290.dkr.ecr.ap-south-1.amazonaws.com/jenkins-agent-devops:latest
-      command:
-        - cat
-      tty: true
-'''
-        }
-      }
-      steps {
-        sh '''
-          #!/usr/bin/env bash
-          set -euo pipefail
-          aws eks update-kubeconfig --region "$AWS_REGION" --name "$EKS_CLUSTER"
-        '''
       }
     }
 
