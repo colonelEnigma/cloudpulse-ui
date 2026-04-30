@@ -1,6 +1,8 @@
 pipeline {
-  agent {
-    label "eks-tools"
+  agent none
+
+  options {
+    disableConcurrentBuilds()
   }
 
   environment {
@@ -15,12 +17,46 @@ pipeline {
 
   stages {
     stage("Checkout") {
+      agent {
+        kubernetes {
+          defaultContainer "devops"
+          yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins-deployer
+  containers:
+    - name: devops
+      image: 348071628290.dkr.ecr.ap-south-1.amazonaws.com/jenkins-agent-devops:latest
+      command:
+        - cat
+      tty: true
+'''
+        }
+      }
       steps {
         checkout scm
       }
     }
 
     stage("Resolve Metadata") {
+      agent {
+        kubernetes {
+          defaultContainer "devops"
+          yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins-deployer
+  containers:
+    - name: devops
+      image: 348071628290.dkr.ecr.ap-south-1.amazonaws.com/jenkins-agent-devops:latest
+      command:
+        - cat
+      tty: true
+'''
+        }
+      }
       steps {
         script {
           env.IMAGE_TAG = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
@@ -30,6 +66,23 @@ pipeline {
     }
 
     stage("Toolchain Preflight") {
+      agent {
+        kubernetes {
+          defaultContainer "devops"
+          yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins-deployer
+  containers:
+    - name: devops
+      image: 348071628290.dkr.ecr.ap-south-1.amazonaws.com/jenkins-agent-devops:latest
+      command:
+        - cat
+      tty: true
+'''
+        }
+      }
       steps {
         sh '''
           #!/usr/bin/env bash
@@ -66,6 +119,23 @@ pipeline {
     }
 
     stage("AWS + ECR Login") {
+      agent {
+        kubernetes {
+          defaultContainer "devops"
+          yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins-deployer
+  containers:
+    - name: devops
+      image: 348071628290.dkr.ecr.ap-south-1.amazonaws.com/jenkins-agent-devops:latest
+      command:
+        - cat
+      tty: true
+'''
+        }
+      }
       steps {
         sh '''
           #!/usr/bin/env bash
@@ -85,6 +155,23 @@ pipeline {
     }
 
     stage("Build & Push") {
+      agent {
+        kubernetes {
+          defaultContainer "devops"
+          yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins-deployer
+  containers:
+    - name: devops
+      image: 348071628290.dkr.ecr.ap-south-1.amazonaws.com/jenkins-agent-devops:latest
+      command:
+        - cat
+      tty: true
+'''
+        }
+      }
       steps {
         sh '''
           #!/usr/bin/env bash
@@ -109,6 +196,23 @@ pipeline {
     }
 
     stage("Configure kubectl") {
+      agent {
+        kubernetes {
+          defaultContainer "devops"
+          yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins-deployer
+  containers:
+    - name: devops
+      image: 348071628290.dkr.ecr.ap-south-1.amazonaws.com/jenkins-agent-devops:latest
+      command:
+        - cat
+      tty: true
+'''
+        }
+      }
       steps {
         sh '''
           #!/usr/bin/env bash
@@ -119,6 +223,23 @@ pipeline {
     }
 
     stage("Deploy Frontend") {
+      agent {
+        kubernetes {
+          defaultContainer "devops"
+          yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins-deployer
+  containers:
+    - name: devops
+      image: 348071628290.dkr.ecr.ap-south-1.amazonaws.com/jenkins-agent-devops:latest
+      command:
+        - cat
+      tty: true
+'''
+        }
+      }
       steps {
         sh '''
           #!/usr/bin/env bash
@@ -130,6 +251,23 @@ pipeline {
     }
 
     stage("Apply Ingress If Changed") {
+      agent {
+        kubernetes {
+          defaultContainer "devops"
+          yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins-deployer
+  containers:
+    - name: devops
+      image: 348071628290.dkr.ecr.ap-south-1.amazonaws.com/jenkins-agent-devops:latest
+      command:
+        - cat
+      tty: true
+'''
+        }
+      }
       steps {
         sh '''
           #!/usr/bin/env bash
@@ -158,6 +296,23 @@ pipeline {
     }
 
     stage("Rollout Wait") {
+      agent {
+        kubernetes {
+          defaultContainer "devops"
+          yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins-deployer
+  containers:
+    - name: devops
+      image: 348071628290.dkr.ecr.ap-south-1.amazonaws.com/jenkins-agent-devops:latest
+      command:
+        - cat
+      tty: true
+'''
+        }
+      }
       steps {
         sh '''
           #!/usr/bin/env bash
