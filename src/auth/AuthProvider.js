@@ -37,9 +37,10 @@ export function AuthProvider({ children }) {
         .get("/api/users/profile")
         .then((res) => {
           if (!mounted) return;
-          setUser(res.data);
+          const profile = normalizeUser(res.data);
+          setUser(profile);
           try {
-            localStorage.setItem("user", JSON.stringify(res.data));
+            localStorage.setItem("user", JSON.stringify(profile));
           } catch (e) {
             /* ignore */
           }

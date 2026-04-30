@@ -154,18 +154,6 @@ export default function App() {
           element = <Navigate to="/dashboard" replace />;
         }
 
-        if (route.route === "/control-panel") {
-          // eslint-disable-next-line no-console
-          console.log("getRoutes control-panel decision:", {
-            routeKey: route.key,
-            protected: route.protected,
-            adminOnly: route.adminOnly,
-            tokenPresent: !!token,
-            userRole: user && user.role,
-            elementIsNavigate: element && element.type === Navigate,
-          });
-        }
-
         return <Route path={route.route} element={element} key={route.key} />;
       }
 

@@ -1,8 +1,7 @@
-// services/apiClient.js
 import axios from "axios";
 import API_URLS from "../config";
 
-function createApiClient(baseURL) {
+export function createApiClient(baseURL = "") {
   const client = axios.create({
     baseURL,
     withCredentials: true,

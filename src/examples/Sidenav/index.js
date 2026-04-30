@@ -118,8 +118,12 @@ function Sidenav({ color, brand, brandName, routes, ...rest }) {
             />
           </Link>
         ) : (
-          <NavLink key={key} to={route}>
-            <SidenavCollapse name={name} icon={icon} active={key === collapseName} />
+          <NavLink key={key} to={route.replace("/*", "")}>
+            <SidenavCollapse
+              name={name}
+              icon={icon}
+              active={collapseName === key || collapseName.startsWith(`${key}/`)}
+            />
           </NavLink>
         );
       } else if (type === "title") {
