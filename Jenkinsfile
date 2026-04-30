@@ -1,5 +1,7 @@
 pipeline {
-  agent any
+  agent {
+    label "eks-tools"
+  }
 
   environment {
     AWS_REGION = "ap-south-1"
@@ -30,6 +32,7 @@ pipeline {
     stage("Toolchain Preflight") {
       steps {
         sh '''
+          #!/usr/bin/env bash
           set -euo pipefail
 
           missing=0
@@ -65,7 +68,9 @@ pipeline {
     stage("AWS + ECR Login") {
       steps {
         sh '''
+          #!/usr/bin/env bash
           set -euo pipefail
+
           PASSWORD="$(aws ecr get-login-password --region "$AWS_REGION")"
 
           if command -v buildah >/dev/null 2>&1; then
@@ -82,7 +87,9 @@ pipeline {
     stage("Build & Push") {
       steps {
         sh '''
+          #!/usr/bin/env bash
           set -euo pipefail
+
           FULL_IMAGE="${IMAGE_URI}:${IMAGE_TAG}"
 
           if command -v buildah >/dev/null 2>&1; then
@@ -104,6 +111,7 @@ pipeline {
     stage("Configure kubectl") {
       steps {
         sh '''
+          #!/usr/bin/env bash
           set -euo pipefail
           aws eks update-kubeconfig --region "$AWS_REGION" --name "$EKS_CLUSTER"
         '''
@@ -113,6 +121,7 @@ pipeline {
     stage("Deploy Frontend") {
       steps {
         sh '''
+          #!/usr/bin/env bash
           set -euo pipefail
           sed "s|\\${IMAGE_TAG}|${IMAGE_TAG}|g" k8s/frontend/deployment.yml | kubectl apply -f -
           kubectl apply -f k8s/frontend/service.yml
@@ -123,7 +132,9 @@ pipeline {
     stage("Apply Ingress If Changed") {
       steps {
         sh '''
+          #!/usr/bin/env bash
           set -euo pipefail
+
           INGRESS_FILE="k8s/frontend/ingress.yml"
           SHOULD_APPLY="false"
 
@@ -149,6 +160,7 @@ pipeline {
     stage("Rollout Wait") {
       steps {
         sh '''
+          #!/usr/bin/env bash
           set -euo pipefail
           kubectl rollout status deployment/frontend -n "$K8S_NAMESPACE"
         '''
