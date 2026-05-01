@@ -53,6 +53,22 @@ export const getResilience = async () => {
   return response.data;
 };
 
+export const getAiStatus = async () => {
+  const response = await controlPlaneApi.get(`${CONTROL_PLANE_BASE}/ai/status`);
+  return response.data;
+};
+
+export const askAiAssistant = async ({ mode, service, question }) => {
+  const payload = { mode, question };
+
+  if (service && service !== "all") {
+    payload.service = service;
+  }
+
+  const response = await controlPlaneApi.post(`${CONTROL_PLANE_BASE}/ai/chat`, payload);
+  return response.data;
+};
+
 export const getActions = async () => {
   const response = await controlPlaneApi.get(`${CONTROL_PLANE_BASE}/actions`);
   return response.data;

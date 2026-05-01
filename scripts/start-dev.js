@@ -1,15 +1,19 @@
-﻿const http = require("http");
+const http = require("http");
 const { spawn } = require("child_process");
 
-const localIngressPort = process.env.PROD_INGRESS_LOCAL_PORT || "8080";
-const proxyTarget = process.env.PROD_API_PROXY_TARGET || `http://localhost:${localIngressPort}`;
+const localIngressPort = process.env.PROD_INGRESS_LOCAL_PORT || "18080";
+const controlPlaneTarget =
+  process.env.CONTROL_PLANE_PROXY_TARGET || `http://localhost:${localIngressPort}`;
+const controlPlaneAiTarget =
+  process.env.CONTROL_PLANE_AI_PROXY_TARGET || "http://localhost:7100";
 const shouldAutoPortForward =
   process.env.SKIP_KUBE_PORT_FORWARD !== "true" &&
-  /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(proxyTarget);
+  /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(controlPlaneTarget);
 
 process.env.PORT = process.env.PORT || "3001";
 process.env.BROWSER = process.env.BROWSER || "none";
-process.env.PROD_API_PROXY_TARGET = proxyTarget;
+process.env.CONTROL_PLANE_PROXY_TARGET = controlPlaneTarget;
+process.env.CONTROL_PLANE_AI_PROXY_TARGET = controlPlaneAiTarget;
 
 let portForwardProcess = null;
 let reactProcess = null;
@@ -32,9 +36,9 @@ const request = (url, timeoutMs = 2500) =>
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const waitForProxyTarget = async () => {
+const waitForControlPlaneTarget = async () => {
   const deadline = Date.now() + 20000;
-  const healthUrl = `${proxyTarget}/api/control-plane/status`;
+  const healthUrl = `${controlPlaneTarget}/api/control-plane/status`;
 
   while (Date.now() < deadline) {
     const result = await request(healthUrl);
@@ -47,18 +51,18 @@ const waitForProxyTarget = async () => {
   throw new Error(`Timed out waiting for ${healthUrl}`);
 };
 
-const startPortForward = async () => {
+const startControlPlanePortForward = async () => {
   if (!shouldAutoPortForward) {
     return;
   }
 
-  const existing = await request(`${proxyTarget}/api/control-plane/status`);
+  const existing = await request(`${controlPlaneTarget}/api/control-plane/status`);
   if (existing.ok) {
-    console.log(`[dev-start] Reusing existing proxy target ${proxyTarget}`);
+    console.log(`[dev-start] Reusing existing Control Plane target ${controlPlaneTarget}`);
     return;
   }
 
-  console.log(`[dev-start] Starting Kubernetes ingress tunnel on ${proxyTarget}`);
+  console.log(`[dev-start] Starting prod Control Plane tunnel on ${controlPlaneTarget}`);
   portForwardProcess = spawn(
     "kubectl",
     [
@@ -78,12 +82,23 @@ const startPortForward = async () => {
     }
   });
 
-  await waitForProxyTarget();
+  await waitForControlPlaneTarget();
+};
+
+const printMappings = () => {
+  console.log(`[dev-start] Frontend: http://localhost:${process.env.PORT}`);
+  console.log("[dev-start] App APIs call Docker Compose directly:");
+  console.log("[dev-start]   /api/users    -> http://localhost:3000");
+  console.log("[dev-start]   /api/orders   -> http://localhost:3003");
+  console.log("[dev-start]   /api/payment  -> http://localhost:4000");
+  console.log("[dev-start]   /api/products -> http://localhost:3005");
+  console.log("[dev-start]   /api/search   -> http://localhost:5003");
+  console.log(`[dev-start] Control Plane proxy: /api/control-plane -> ${controlPlaneTarget}`);
+  console.log(`[dev-start] Control Plane AI proxy: /api/control-plane/ai -> ${controlPlaneAiTarget}`);
 };
 
 const startReact = () => {
-  console.log(`[dev-start] Frontend: http://localhost:${process.env.PORT}`);
-  console.log(`[dev-start] API proxy target: ${process.env.PROD_API_PROXY_TARGET}`);
+  printMappings();
 
   reactProcess = spawn("react-scripts", ["start"], {
     stdio: "inherit",
@@ -113,7 +128,7 @@ process.on("SIGTERM", () => {
   process.exit(143);
 });
 
-startPortForward()
+startControlPlanePortForward()
   .then(startReact)
   .catch((error) => {
     cleanup();
