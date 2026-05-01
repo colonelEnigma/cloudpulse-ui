@@ -1,8 +1,10 @@
-# dependencies
+﻿# dependencies
 node_modules/
 
 # env files
 .env
+.env.local
+.env.*.local
 
 # logs
 *.log
