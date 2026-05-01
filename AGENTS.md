@@ -30,6 +30,22 @@ Recent history uses short, plain commit subjects such as `updating readme`; keep
 
 Do not commit secrets or environment-specific credentials. Current service base URLs are hardcoded in `src/config.js` for local development; document any endpoint changes in the PR and keep API access behind `src/services/` rather than scattering raw URLs through screens.
 
+## Context File Map (2026-05-01)
+
+Use the new `.context` naming:
+
+- `.context/Planbackend.md`
+- `.context/Planfrontend.md`
+- `.context/ProjectContext.md`
+- `.context/project-handoff.md`
+
+Prefer these files over older names (`control-plane-backend-plan.md`, `control-plane-frontend-plan.md`, `project-context.md`) when resuming work in new chats.
+
+Current implementation snapshot:
+
+- Control Panel frontend is live-integrated to `/api/control-plane/*` with admin-only visibility.
+- Frontend EKS/Jenkins delivery exists in root `Jenkinsfile` + `k8s/frontend/*` + `Dockerfile` + `nginx.conf`.
+- Order Details payment status is fetched from payment-service by order ID.
 
 ## Implementation rules:
 - Preserve the Creative Tim Material Dashboard foundation.
