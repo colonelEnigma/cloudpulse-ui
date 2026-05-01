@@ -92,6 +92,29 @@ Behavior now:
 - shows `Unavailable` on other payment lookup errors
 - no forced `"pending"` fallback on errors
 
+### 5) Control Panel Resilience diagnostics page
+
+Added a read-only Resilience tab/page wired to the backend route:
+
+- `GET /api/control-plane/resilience`
+
+Updated:
+
+- `src/services/controlPlaneService.js` (`getResilience`)
+- `src/layouts/control-panel/Resilience.js`
+- `src/layouts/control-panel/index.js` (tab + nested route)
+
+Behavior:
+
+- renders healer-service `ServiceDown` policy safeguards
+- renders per-service healer circuit breaker/rate-limit state
+- renders retry and cooldown settings
+- renders order-service -> product-service circuit breaker diagnostics
+- renders product HTTP retry behavior
+- renders manual scale guardrails
+- shows API `warnings[]` as non-blocking warnings
+- remains read-only with no new mutation controls
+
 ---
 
 ## Current Runtime Notes
@@ -121,5 +144,5 @@ Behavior now:
    - `AGENTS.md`
 2. Check git status for pending file-name migration and frontend edits.
 3. Decide whether to:
-   - commit current frontend/Jenkins/payment fixes as-is, or
+   - commit current frontend/Jenkins/payment/resilience fixes as-is, or
    - do a lockfile hardening pass before commit.

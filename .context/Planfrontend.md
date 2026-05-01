@@ -1,16 +1,16 @@
 # PlanFrontend
 
-Lives at `.context/PlanFrontend.md` in the `cloudpulse-ui` repository.
-Project-wide context (services, ports, DB schema, RBAC, tools): `.context/ProjectContext.md`
-Backend API contract this plan integrates against: backend repo → `.context/PlanBackend.md`
+Lives at `.context/Planfrontend.md` in the `cloudpulse-ui` repository.
+Project-wide context: `.context/ProjectContext.md`
+Backend API contract: `.context/Planbackend.md`
 
-Last updated: 2026-04-30
+Last updated: 2026-05-01
 
 ---
 
 ## Current Status
 
-UI-only Control Panel scaffolding is in place. Backend APIs are fully implemented. Active phase is **live data integration and guarded action wiring**.
+Control Panel frontend integration is implemented against live `/api/control-plane/*` APIs with admin-only visibility, guarded scale actions, and a read-only Resilience diagnostics page.
 
 ---
 
@@ -18,96 +18,50 @@ UI-only Control Panel scaffolding is in place. Backend APIs are fully implemente
 
 - Do not replace `cloudpulse-ui` or start a new app from scratch.
 - Base: Creative Tim Material Dashboard 2 React (React 18, Material UI 5, CRA / `react-scripts`).
-- API calls via `axios`; routing via `react-router-dom`.
-- All deployed API calls use ingress-relative `/api/...` paths (not hardcoded hosts).
+- API calls use `axios`; routing uses `react-router-dom`.
+- Deployed API calls use ingress-relative `/api/...` paths.
 - Control Panel API calls use `/api/control-plane/...`.
+- Final Control Panel pages use live backend data only, not mocks.
 
 ---
 
-## Phase 1 — Auth Fixes
+## Completed Implementation
 
-| Task | Status |
-|---|---|
-| Fix `src/services/authService.js` — `loginUser` helper referenced undefined `API`; update to use `/api/users/login` | ✅ Done |
-| After login, fetch `GET /api/users/profile` and store full user identity + `role` in auth state | ✅ Done |
-| `AuthProvider` stores token + user identity/role (not token only) | ✅ Done |
-| Normalize wrapped profile payloads from `localStorage` and API responses | ✅ Done |
-| Wait for profile load when a token exists before routing — avoids redirect races | ✅ Done |
+### Auth And Admin Gating
 
----
+| Task                                                                                          | Status |
+| --------------------------------------------------------------------------------------------- | ------ |
+| `loginUser` uses `/api/users/login`                                                           | Done   |
+| Login/profile flow fetches `GET /api/users/profile` and stores full user identity plus `role` | Done   |
+| `AuthProvider` stores token and normalized user identity/role                                 | Done   |
+| Existing tokens wait for profile load before protected/admin route decisions                  | Done   |
+| Control Panel sidebar/route visibility is admin-only (`user.role === "admin"`)                | Done   |
 
-## Phase 2 — Control Panel UI Scaffolding
+### Control Panel Live Pages
 
-| Task | Status |
-|---|---|
-| Add `src/layouts/control-panel/` with navigation and nested routing | ✅ Done |
-| Update routing to `/control-panel/*` for correct nested route rendering | ✅ Done |
-| Add placeholder pages: Overview, Services (with drill-down), Logs, Incidents, Audit | ✅ Done |
-| Hide `Control Panel` tab unless `user.role === "admin"` (UX guard only; backend auth remains required) | ✅ Done |
+| Page           | Route                              | Backend APIs                                                          | Status |
+| -------------- | ---------------------------------- | --------------------------------------------------------------------- | ------ |
+| Overview       | `/control-panel/overview`          | `GET /api/control-plane/status`, `GET /api/control-plane/overview`    | Done   |
+| Services       | `/control-panel/services`          | `GET /api/control-plane/deployments`                                  | Done   |
+| Service Detail | `/control-panel/services/:service` | service detail, logs, events, actions                                 | Done   |
+| Logs           | `/control-panel/logs`              | `GET /api/control-plane/logs`, `GET /api/control-plane/logs/:service` | Done   |
+| Incidents      | `/control-panel/incidents`         | alerts, service events, healer history                                | Done   |
+| Audit          | `/control-panel/audit`             | `GET /api/control-plane/actions`                                      | Done   |
+| Resilience     | `/control-panel/resilience`        | `GET /api/control-plane/resilience`                                   | Done   |
 
----
+### Guarded Scale Actions
 
-## Phase 3 — Live Data Integration
+Scale Down and Scale Up live only on the service detail view.
 
-All Control Panel pages currently show placeholder/mock UI. This phase wires them to live backend APIs.
-Backend routes reference: backend repo → `.context/PlanBackend.md` → Implemented API Routes table.
+| Task                                                                          | Status |
+| ----------------------------------------------------------------------------- | ------ |
+| Scale Down submits `POST /api/control-plane/actions/scale` with `replicas: 0` | Done   |
+| Scale Up submits `POST /api/control-plane/actions/scale` with `replicas: 1`   | Done   |
+| Typed confirmation must exactly match the service name                        | Done   |
+| Failed/blocked backend responses are surfaced in the UI                       | Done   |
+| Detail data refreshes after scale action                                      | Done   |
 
-### Overview Page (`GET /api/control-plane/overview`)
-
-| Task | Status |
-|---|---|
-| Fetch and render prod platform health summary | ⏳ Pending |
-| Show service counts, degraded services, active alert-style states | ⏳ Pending |
-| Show recent healer history incidents | ⏳ Pending |
-| Show recent manual Control Panel actions | ⏳ Pending |
-
-### Services Page (`GET /api/control-plane/deployments`)
-
-| Task | Status |
-|---|---|
-| Fetch and render allowlisted prod deployments | ⏳ Pending |
-| Show per-deployment: image tag, desired replicas, ready replicas, available replicas, pod readiness | ⏳ Pending |
-| Service detail drill-down route/panel (`GET /api/control-plane/services/:service`) | ⏳ Pending |
-| Service detail shows: deployment state, pods, image, events, recent logs, health, recent healer actions, recent manual actions | ⏳ Pending |
-
-### Logs Page
-
-| Task | Status |
-|---|---|
-| Single service log viewer (`GET /api/control-plane/logs/:service`) | ⏳ Pending |
-| Combined prod app log viewer (`GET /api/control-plane/logs`) | ⏳ Pending |
-| Combined logs must display service and pod identifier per entry | ⏳ Pending |
-
-### Incidents Page
-
-| Task | Status |
-|---|---|
-| Prometheus alert-style state (`GET /api/control-plane/alerts`) | ⏳ Pending |
-| Kubernetes events and service diagnostics (`GET /api/control-plane/events/:service`) | ⏳ Pending |
-| Healer history (`GET /api/control-plane/healing-history`) | ⏳ Pending |
-
-### Audit Page (`GET /api/control-plane/actions`)
-
-| Task | Status |
-|---|---|
-| Fetch and render paginated manual Control Panel action history from `controlplanedb.control_plane_actions` | ⏳ Pending |
-| Show result per action: success / blocked / error | ⏳ Pending |
-
----
-
-## Phase 4 — Guarded Scale Actions
-
-Scale Down and Scale Up live on the **service detail** view, not as global controls.
-
-| Task | Status |
-|---|---|
-| Scale Down button — submits `POST /api/control-plane/actions/scale` with `replicas: 0` | ⏳ Pending |
-| Scale Up button — submits `POST /api/control-plane/actions/scale` with `replicas: 1` | ⏳ Pending |
-| Typed confirmation dialog — user must type the service name exactly before action is submitted | ⏳ Pending |
-| Surface failed/blocked action responses in the UI | ⏳ Pending |
-| Audit page reflects new actions after backend refresh | ⏳ Pending |
-
-Scale action payload shape (matches backend contract):
+Scale action payload:
 
 ```json
 {
@@ -120,27 +74,70 @@ Scale action payload shape (matches backend contract):
 
 ---
 
-## Phase 5 — Deployment
+## Resilience Diagnostics Page
 
-| Task | Status |
-|---|---|
-| Frontend Kubernetes/Jenkins deployment decision | ⏳ Pending |
-| Frontend deployment integration | ⏳ Pending |
+Implemented files:
+
+- `src/services/controlPlaneService.js` - `getResilience()`
+- `src/layouts/control-panel/Resilience.js`
+- `src/layouts/control-panel/index.js` - Resilience tab and nested route
+
+The page is read-only and renders:
+
+- Healer `ServiceDown` safeguard summary
+- Per-service healer circuit breaker state for allowlisted prod services
+- Per-service healer rate-limit state
+- Healer retry and cooldown settings
+- Recent blocked reason counts and last healer action when present
+- `order-service` to `product-service` circuit breaker diagnostics
+- Product HTTP retry behavior
+- Control Plane manual scale guard policy
+- API `warnings[]` as non-blocking warnings
+- Loading, empty, and error states consistent with existing Control Panel pages
+
+Display rules:
+
+- If `orderProductCircuitBreaker` is `null`, keep the page usable and show the warning/empty diagnostic.
+- If `serviceState` is empty, show a real empty state.
+- Treat circuit breaker state values (`closed`, `open`, `half_open`) as live status labels.
+- Do not add controls for changing thresholds, resetting circuit breakers, mutating healer policy, RBAC, or external tools.
 
 ---
 
-## Safety Constraints (UI Must Never Expose)
+## Deployment
 
-- No controls for: secrets, pod deletion, namespace deletion, PVC mutation, Kafka mutation, PostgreSQL app-data mutation, Jenkins/Grafana/Prometheus/Alertmanager mutation, or broad Kubernetes mutation.
-- No mock data in the final Control Panel implementation.
-- Admin route rendering must wait for profile/role load before showing or hiding the Control Panel tab.
-- Direct `/control-panel/*` route access by a normal user is blocked both by frontend routing guard and by backend API authorization.
+Frontend Kubernetes/Jenkins delivery is implemented:
+
+- `Dockerfile`
+- `nginx.conf`
+- `k8s/frontend/deployment.yml`
+- `k8s/frontend/service.yml`
+- `k8s/frontend/ingress.yml`
+- root `Jenkinsfile`
+
+Pipeline behavior:
+
+- builds and pushes short SHA image tags
+- deploys to namespace `prod`
+- waits for `deployment/frontend` rollout
+- applies ingress only when RBAC allows it, otherwise skips gracefully
 
 ---
 
-## Normal User Routes (Unchanged)
+## Safety Constraints
 
-These exist and are not part of the active work, but must remain unaffected:
+- No controls for secrets, pod deletion, namespace deletion, PVC mutation, Kafka mutation, PostgreSQL app-data mutation, Jenkins/Grafana/Prometheus/Alertmanager mutation, or broad Kubernetes mutation.
+- Control Panel remains prod-only and allowlist-only.
+- V1 mutation is only typed-confirmed scale to `0` or `1` for allowlisted prod app deployments.
+- Admin route rendering must wait for profile/role load.
+- Direct `/control-panel/*` route access by a normal user is blocked by frontend routing and backend API authorization.
+- Resilience diagnostics are read-only.
+
+---
+
+## Normal User Routes
+
+These routes remain unchanged:
 
 - Sign In / Sign Up
 - Home / Categories
@@ -151,8 +148,10 @@ These exist and are not part of the active work, but must remain unaffected:
 
 ---
 
-## Deferred (Out of V1 Scope)
+## Known Follow-ups
 
-- Final visual polish and screenshots
-- README demo walkthrough updates
-- AI incident assistant and log analyzer UI
+1. Lockfile consistency:
+   - Dockerfile currently uses `npm install --legacy-peer-deps`.
+   - Preferred hardening: sync `package-lock.json` and switch back to `npm ci`.
+2. If ingress should be fully pipeline-managed, grant ingress verbs in `prod` to `system:serviceaccount:jenkins:jenkins-deployer`.
+3. Optional final polish: screenshots and README walkthrough updates.

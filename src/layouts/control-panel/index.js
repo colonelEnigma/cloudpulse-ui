@@ -12,6 +12,7 @@ import Overview from "./Overview";
 import Services from "./Services";
 import Logs from "./Logs";
 import Incidents from "./Incidents";
+import Resilience from "./Resilience";
 import Audit from "./Audit";
 
 function NavButton({ to, children }) {
@@ -57,6 +58,7 @@ export default function ControlPanel() {
                   <NavButton to="services">Services</NavButton>
                   <NavButton to="logs">Logs</NavButton>
                   <NavButton to="incidents">Incidents</NavButton>
+                  <NavButton to="resilience">Resilience</NavButton>
                   <NavButton to="audit">Audit</NavButton>
                 </MDBox>
 
@@ -66,6 +68,7 @@ export default function ControlPanel() {
                   <Route path="services/*" element={<Services />} />
                   <Route path="logs" element={<Logs />} />
                   <Route path="incidents" element={<Incidents />} />
+                  <Route path="resilience" element={<Resilience />} />
                   <Route path="audit" element={<Audit />} />
                 </Routes>
               </MDBox>

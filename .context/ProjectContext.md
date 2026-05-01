@@ -8,14 +8,16 @@ Shared context file. Lives at `.context/ProjectContext.md` in both the frontend 
 
 CloudPulse is a prod-facing e-commerce platform with a self-healing infrastructure layer. Normal users can browse products, manage a cart, place orders, and view payment status. Admins get an additional **Control Panel** — a live operational console for monitoring prod Kubernetes deployments, viewing logs/alerts/healer history, and performing tightly guarded scale actions with full audit trails.
 
+The Control Panel also includes a read-only Resilience diagnostics page for visibility into existing backend safeguards, including healer-service policy state, service circuit breakers/rate limits, order-service to product-service circuit breaker behavior, retry settings, and manual scale guardrails.
+
 ---
 
 ## Repositories
 
-| Repo | Purpose |
-|---|---|
-| `cloudpulse-ui` | Frontend — React app (Material Dashboard 2) |
-| Backend repo | All backend microservices including `control-plane-service` |
+| Repo            | Purpose                                                     |
+| --------------- | ----------------------------------------------------------- |
+| `cloudpulse-ui` | Frontend — React app (Material Dashboard 2)                 |
+| Backend repo    | All backend microservices including `control-plane-service` |
 
 Frontend local path: `C:\Users\ranja\Documents\projects\cloudpulse-ui`
 
@@ -23,33 +25,33 @@ Frontend local path: `C:\Users\ranja\Documents\projects\cloudpulse-ui`
 
 ## Services
 
-| Service | Description | Namespace |
-|---|---|---|
-| `user-service` | Auth, JWT, user profile, role management | `prod` |
-| `order-service` | Order management | `prod` |
-| `payment-service` | Payment processing | `prod` |
-| `product-service` | Product catalog | `prod` |
-| `search-service` | Search functionality | `prod` |
-| `healer-service` | Self-healing automation; exposes `/history` endpoint | `prod` |
-| `control-plane-service` | Admin-only Control Panel backend | `monitoring` |
+| Service                 | Description                                          | Namespace    |
+| ----------------------- | ---------------------------------------------------- | ------------ |
+| `user-service`          | Auth, JWT, user profile, role management             | `prod`       |
+| `order-service`         | Order management                                     | `prod`       |
+| `payment-service`       | Payment processing                                   | `prod`       |
+| `product-service`       | Product catalog                                      | `prod`       |
+| `search-service`        | Search functionality                                 | `prod`       |
+| `healer-service`        | Self-healing automation; exposes `/history` endpoint | `prod`       |
+| `control-plane-service` | Admin-only Control Panel backend                     | `monitoring` |
 
 ---
 
 ## Ports
 
-| Service | Local Port |
-|---|---|
-| `control-plane-service` | `7100` (Docker Compose: `7100:7100`) |
-| `cloudpulse-ui` | `3001` (also used as CORS origin in `control-plane-service`) |
+| Service                 | Local Port                                                   |
+| ----------------------- | ------------------------------------------------------------ |
+| `control-plane-service` | `7100` (Docker Compose: `7100:7100`)                         |
+| `cloudpulse-ui`         | `3001` (also used as CORS origin in `control-plane-service`) |
 
 ---
 
 ## Databases
 
-| Database | Used By | Notes |
-|---|---|---|
-| App DB (existing) | `user-service` | `users` table has `role VARCHAR(20) DEFAULT 'user'` |
-| `controlplanedb` | `control-plane-service` | Audit DB; initialized on service startup |
+| Database          | Used By                 | Notes                                               |
+| ----------------- | ----------------------- | --------------------------------------------------- |
+| App DB (existing) | `user-service`          | `users` table has `role VARCHAR(20) DEFAULT 'user'` |
+| `controlplanedb`  | `control-plane-service` | Audit DB; initialized on service startup            |
 
 ### `control_plane_actions` schema (in `controlplanedb`)
 
@@ -64,19 +66,20 @@ requested_replicas, previous_replicas, result, reason, created_at
 
 ## Infrastructure & Tools
 
-| Tool | Role |
-|---|---|
-| **Kubernetes** | Orchestration; `prod` namespace for app services, `monitoring` for `control-plane-service` |
-| **Prometheus** | Metrics and alert-style health state for prod services |
-| **Kafka** | Messaging (used by `order-service`, `product-service`) |
-| **Jenkins** | CI/CD; deployment integration implemented for `control-plane-service` |
-| **Docker Compose** | Local dev environment |
+| Tool               | Role                                                                                       |
+| ------------------ | ------------------------------------------------------------------------------------------ |
+| **Kubernetes**     | Orchestration; `prod` namespace for app services, `monitoring` for `control-plane-service` |
+| **Prometheus**     | Metrics and alert-style health state for prod services                                     |
+| **Kafka**          | Messaging (used by `order-service`, `product-service`)                                     |
+| **Jenkins**        | CI/CD; deployment integration implemented for `control-plane-service`                      |
+| **Docker Compose** | Local dev environment                                                                      |
 
 ---
 
 ## Tech Stack
 
 ### Backend (`control-plane-service`)
+
 - Node.js + Express (CommonJS)
 - `pg` for PostgreSQL
 - Kubernetes API client
@@ -84,6 +87,7 @@ requested_replicas, previous_replicas, result, reason, created_at
 - JWT auth with admin-only middleware and service allowlist middleware
 
 ### Frontend (`cloudpulse-ui`)
+
 - React 18
 - Material UI 5 (Creative Tim Material Dashboard 2)
 - Create React App / `react-scripts`
@@ -105,6 +109,12 @@ UPDATE users SET role = 'admin' WHERE email = '<admin-email>';
 
 - All `/api/control-plane/*` routes require a valid JWT **and** `role === "admin"`.
 - Normal users receive a denied response for all Control Panel APIs — frontend hiding is UX only.
+
+### Control Panel Read-Only Diagnostics
+
+- `GET /api/control-plane/resilience` exposes resilience mechanism status for admins.
+- The frontend route is `/control-panel/resilience`.
+- This page is read-only and must not expose threshold edits, circuit breaker resets, RBAC changes, or any new mutation.
 
 ---
 

@@ -48,6 +48,11 @@ export const getHealingHistory = async () => {
   return response.data;
 };
 
+export const getResilience = async () => {
+  const response = await controlPlaneApi.get(`${CONTROL_PLANE_BASE}/resilience`);
+  return response.data;
+};
+
 export const getActions = async () => {
   const response = await controlPlaneApi.get(`${CONTROL_PLANE_BASE}/actions`);
   return response.data;

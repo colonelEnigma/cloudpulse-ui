@@ -44,10 +44,12 @@ Prefer these files over older names (`control-plane-backend-plan.md`, `control-p
 Current implementation snapshot:
 
 - Control Panel frontend is live-integrated to `/api/control-plane/*` with admin-only visibility.
+- Control Panel includes read-only `/control-panel/resilience` diagnostics backed by `GET /api/control-plane/resilience`.
 - Frontend EKS/Jenkins delivery exists in root `Jenkinsfile` + `k8s/frontend/*` + `Dockerfile` + `nginx.conf`.
 - Order Details payment status is fetched from payment-service by order ID.
 
 ## Implementation rules:
+
 - Preserve the Creative Tim Material Dashboard foundation.
 - Main app is user-centric: auth, products, cart/checkout, orders, profile.
 - Admins see user pages plus an admin-only `Control Panel` top tab.
@@ -64,6 +66,7 @@ Current implementation snapshot:
 This repository supports lightweight agent customization files to define specialized Copilot/agent behaviours for common tasks (e.g., release assistant, frontend reviewer, security auditor). There are currently no `.agent.md`, `.instructions.md`, or `.prompt.md` files in the workspace; add one when you need a persistent, role-specific assistant.
 
 Recommended locations:
+
 - Root: `./my-agent.agent.md`
 - VS Code settings: `.vscode/agents/<agent-name>.agent.md`
 

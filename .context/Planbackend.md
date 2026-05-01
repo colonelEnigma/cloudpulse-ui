@@ -12,6 +12,8 @@ Last updated: 2026-05-01
 
 Control Plane backend APIs are implemented and deployed, and the frontend Control Panel is now wired to live `/api/control-plane/*` endpoints with admin-only gating and guarded scale actions.
 
+As of 2026-05-01, the frontend also includes a read-only Resilience diagnostics page wired to `GET /api/control-plane/resilience`.
+
 ---
 
 ## Backend Contract (Implemented)
@@ -27,6 +29,7 @@ All routes require JWT + admin role:
 - `GET /api/control-plane/events/:service`
 - `GET /api/control-plane/alerts`
 - `GET /api/control-plane/healing-history`
+- `GET /api/control-plane/resilience`
 - `GET /api/control-plane/actions`
 - `POST /api/control-plane/actions/scale`
 
@@ -95,6 +98,13 @@ Scale action guardrails:
   - `Not Found` for payment 404
   - `Unavailable` for other errors
 
+### 5) Resilience diagnostics frontend integration completed
+
+- Added `getResilience()` client helper for `GET /api/control-plane/resilience`.
+- Added `/control-panel/resilience` tab/page.
+- Page renders healer safeguards, per-service circuit breaker/rate-limit state, order/product circuit breaker diagnostics, retry behavior, manual scale guardrails, and API warnings.
+- Page is read-only and exposes no new mutation controls.
+
 ---
 
 ## Known Follow-ups
@@ -113,6 +123,6 @@ Scale action guardrails:
 
 ## Next Suggested Actions
 
-1. Commit and push the latest frontend changes (Control Panel live wiring + Jenkins + payment status fix).
+1. Commit and push the latest frontend changes (Control Panel live wiring + Jenkins + payment status fix + Resilience diagnostics).
 2. If ingress should be fully pipeline-managed, add RBAC for ingress in `prod`.
 3. Stabilize lockfile and move Docker build back to `npm ci` for deterministic installs.
