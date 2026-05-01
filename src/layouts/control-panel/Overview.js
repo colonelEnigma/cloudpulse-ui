@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Card from "@mui/material/Card";
+import Chip from "@mui/material/Chip";
 import Grid from "@mui/material/Grid";
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
@@ -19,6 +20,71 @@ function MetricCard({ label, value, color }) {
         </MDTypography>
       </MDBox>
     </Card>
+  );
+}
+
+function numberValue(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function deploymentHealth(deployment) {
+  const desired = numberValue(getValue(deployment, ["desired", "desiredReplicas", "replicas"], 0));
+  const ready = numberValue(getValue(deployment, ["ready", "readyReplicas"], 0));
+  const available = numberValue(getValue(deployment, ["available", "availableReplicas"], 0));
+
+  if (desired === 0) {
+    return { label: "Scaled down", color: "default", desired, ready, available };
+  }
+
+  if (desired === null || ready === null || available === null) {
+    return { label: "Unknown", color: "warning", desired, ready, available };
+  }
+
+  if (available === 0) {
+    return { label: "Down", color: "error", desired, ready, available };
+  }
+
+  if (ready < desired || available < desired) {
+    return { label: "Degraded", color: "warning", desired, ready, available };
+  }
+
+  return { label: "Healthy", color: "success", desired, ready, available };
+}
+
+function ReplicaChip({ label, value, color }) {
+  return (
+    <Chip
+      label={`${label}: ${formatValue(value)}`}
+      color={color}
+      size="small"
+      variant={color === "default" ? "outlined" : "filled"}
+      sx={{ mr: 1, mb: 1 }}
+    />
+  );
+}
+
+function ServiceHealthRow({ deployment }) {
+  const health = deploymentHealth(deployment);
+
+  return (
+    <MDBox mb={1.5}>
+      <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+        <MDTypography variant="button" fontWeight="medium">
+          {getServiceName(deployment)}
+        </MDTypography>
+        <Chip label={health.label} color={health.color} size="small" />
+      </MDBox>
+      <MDBox display="flex" flexWrap="wrap">
+        <ReplicaChip label="Desired" value={health.desired} color="default" />
+        <ReplicaChip
+          label="Ready"
+          value={health.ready}
+          color={health.ready === health.desired && health.desired > 0 ? "success" : health.color}
+        />
+        <ReplicaChip label="Available" value={health.available} color={health.color} />
+      </MDBox>
+    </MDBox>
   );
 }
 
@@ -92,17 +158,7 @@ export default function Overview() {
               </MDTypography>
               {deployments.length ? (
                 deployments.map((deployment) => (
-                  <MDBox key={getServiceName(deployment)} mb={1.5}>
-                    <MDTypography variant="button" fontWeight="medium">
-                      {getServiceName(deployment)}
-                    </MDTypography>
-                    <MDTypography variant="caption" color="text" display="block">
-                      Desired {formatValue(getValue(deployment, ["desired", "desiredReplicas"]))} |
-                      Ready {formatValue(getValue(deployment, ["ready", "readyReplicas"]))} |
-                      Available{" "}
-                      {formatValue(getValue(deployment, ["available", "availableReplicas"]))}
-                    </MDTypography>
-                  </MDBox>
+                  <ServiceHealthRow key={getServiceName(deployment)} deployment={deployment} />
                 ))
               ) : (
                 <MDTypography variant="body2" color="text">
