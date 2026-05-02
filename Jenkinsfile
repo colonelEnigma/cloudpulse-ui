@@ -200,8 +200,22 @@ spec:
         sh '''
           #!/usr/bin/env bash
           set -euo pipefail
-          sed "s|\\${IMAGE_TAG}|${IMAGE_TAG}|g" k8s/frontend/deployment.yml | kubectl apply -n "$K8S_NAMESPACE" -f -
-          kubectl apply -n "$K8S_NAMESPACE" -f k8s/frontend/service.yml
+          DEPLOYMENT_FILE="k8s/frontend/deployment.yml"
+          SERVICE_FILE="k8s/frontend/service.yml"
+          FULL_IMAGE="${IMAGE_URI}:${IMAGE_TAG}"
+
+          if [ -f "$DEPLOYMENT_FILE" ]; then
+            sed "s|\\${IMAGE_TAG}|${IMAGE_TAG}|g" "$DEPLOYMENT_FILE" | kubectl apply -n "$K8S_NAMESPACE" -f -
+          else
+            echo "Manifest '$DEPLOYMENT_FILE' not found. Falling back to image update on existing deployment."
+            kubectl -n "$K8S_NAMESPACE" set image deployment/frontend frontend="$FULL_IMAGE"
+          fi
+
+          if [ -f "$SERVICE_FILE" ]; then
+            kubectl apply -n "$K8S_NAMESPACE" -f "$SERVICE_FILE"
+          else
+            echo "Manifest '$SERVICE_FILE' not found. Skipping service apply."
+          fi
         '''
       }
     }
@@ -257,7 +271,11 @@ spec:
           fi
 
           if [ "$SHOULD_APPLY" = "true" ]; then
-            kubectl apply -n "$K8S_NAMESPACE" -f "$INGRESS_FILE"
+            if [ -f "$INGRESS_FILE" ]; then
+              kubectl apply -n "$K8S_NAMESPACE" -f "$INGRESS_FILE"
+            else
+              echo "Manifest '$INGRESS_FILE' not found. Skipping ingress apply."
+            fi
           else
             echo "Ingress unchanged; skipping apply."
           fi
