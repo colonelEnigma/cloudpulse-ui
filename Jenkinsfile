@@ -200,8 +200,8 @@ spec:
         sh '''
           #!/usr/bin/env bash
           set -euo pipefail
-          sed "s|\\${IMAGE_TAG}|${IMAGE_TAG}|g" k8s/frontend/deployment.yml | kubectl apply -f -
-          kubectl apply -f k8s/frontend/service.yml
+          sed "s|\\${IMAGE_TAG}|${IMAGE_TAG}|g" k8s/frontend/deployment.yml | kubectl apply -n "$K8S_NAMESPACE" -f -
+          kubectl apply -n "$K8S_NAMESPACE" -f k8s/frontend/service.yml
         '''
       }
     }
@@ -257,7 +257,7 @@ spec:
           fi
 
           if [ "$SHOULD_APPLY" = "true" ]; then
-            kubectl apply -f "$INGRESS_FILE"
+            kubectl apply -n "$K8S_NAMESPACE" -f "$INGRESS_FILE"
           else
             echo "Ingress unchanged; skipping apply."
           fi
@@ -266,6 +266,9 @@ spec:
     }
 
     stage("Rollout Wait") {
+      options {
+        timeout(time: 10, unit: 'MINUTES')
+      }
       agent {
         kubernetes {
           defaultContainer "devops"
@@ -287,7 +290,7 @@ spec:
         sh '''
           #!/usr/bin/env bash
           set -euo pipefail
-          kubectl rollout status deployment/frontend -n "$K8S_NAMESPACE"
+          kubectl rollout status deployment/frontend -n "$K8S_NAMESPACE" --timeout=10m
         '''
       }
     }

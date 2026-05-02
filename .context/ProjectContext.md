@@ -6,7 +6,7 @@ Shared context file. Lives at `.context/ProjectContext.md` in both the frontend 
 
 ## What Is This Project
 
-CloudPulse is a prod-facing e-commerce platform with a self-healing infrastructure layer. Normal users can browse products, manage a cart, place orders, and view payment status. Admins get an additional **Control Panel** â€” a live operational console for monitoring prod Kubernetes deployments, viewing logs/alerts/healer history, and performing tightly guarded scale actions with full audit trails.
+CloudPulse is a prod-facing e-commerce platform with a self-healing infrastructure layer. Normal users can browse products, manage a cart, place orders, and view payment status. Admins get an additional **Control Panel** — a live operational console for monitoring prod Kubernetes deployments, viewing logs/alerts/healer history, and performing tightly guarded scale actions with full audit trails.
 
 The Control Panel also includes a read-only Resilience diagnostics page for visibility into existing backend safeguards, including healer-service policy state, service circuit breakers/rate limits, order-service to product-service circuit breaker behavior, retry settings, and manual scale guardrails.
 
@@ -16,7 +16,7 @@ The Control Panel also includes a read-only Resilience diagnostics page for visi
 
 | Repo            | Purpose                                                     |
 | --------------- | ----------------------------------------------------------- |
-| `cloudpulse-ui` | Frontend â€” React app (Material Dashboard 2)                 |
+| `cloudpulse-ui` | Frontend — React app (shadcn/ui + Tailwind)                 |
 | Backend repo    | All backend microservices including `control-plane-service` |
 
 Frontend local path: `C:\Users\ranja\Documents\projects\cloudpulse-ui`
@@ -89,9 +89,9 @@ requested_replicas, previous_replicas, result, reason, created_at
 ### Frontend (`cloudpulse-ui`)
 
 - React 18
-- Material UI 5 (Creative Tim Material Dashboard 2)
-- Create React App / `react-scripts`
-- `axios` for API calls
+- Material UI 5 (Creative Tim shadcn/ui + Tailwind)
+- Vite
+- `fetch/HTTP helpers for API calls
 - `react-router-dom` for routing
 
 ---
@@ -108,12 +108,12 @@ UPDATE users SET role = 'admin' WHERE email = '<admin-email>';
 ```
 
 - All `/api/control-plane/*` routes require a valid JWT **and** `role === "admin"`.
-- Normal users receive a denied response for all Control Panel APIs â€” frontend hiding is UX only.
+- Normal users receive a denied response for all Control Panel APIs — frontend hiding is UX only.
 
 ### Control Panel Read-Only Diagnostics
 
 - `GET /api/control-plane/resilience` exposes resilience mechanism status for admins.
-- The frontend route is `/control-panel/resilience`.
+- The frontend route is `/admin/resilience`.
 - This page is read-only and must not expose threshold edits, circuit breaker resets, RBAC changes, or any new mutation.
 
 ---
@@ -147,5 +147,6 @@ Scoped to namespace `prod` only.
 - API and UI must enforce `prod` namespace only.
 - Scale replicas must be exactly `0` or `1`.
 - Typed confirmation must exactly match the service name.
-- All manual actions must be audited â€” including blocked and errored ones.
+- All manual actions must be audited — including blocked and errored ones.
 - No generic Kubernetes mutation exposed anywhere.
+

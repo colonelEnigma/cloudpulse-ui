@@ -101,7 +101,7 @@ Scale action guardrails:
 ### 5) Resilience diagnostics frontend integration completed
 
 - Added `getResilience()` client helper for `GET /api/control-plane/resilience`.
-- Added `/control-panel/resilience` tab/page.
+- Added `/admin/resilience` tab/page.
 - Page renders healer safeguards, per-service circuit breaker/rate-limit state, order/product circuit breaker diagnostics, retry behavior, manual scale guardrails, and API warnings.
 - Page is read-only and exposes no new mutation controls.
 
@@ -126,3 +126,4 @@ Scale action guardrails:
 1. Commit and push the latest frontend changes (Control Panel live wiring + Jenkins + payment status fix + Resilience diagnostics).
 2. If ingress should be fully pipeline-managed, add RBAC for ingress in `prod`.
 3. Stabilize lockfile and move Docker build back to `npm ci` for deterministic installs.
+
