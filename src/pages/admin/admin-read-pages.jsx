@@ -246,6 +246,22 @@ export function AdminServiceDetailPage() {
   const deployment = getValue(state.detail, ["deployment"], state.detail || {});
   const replicaSets = asArray(state.detail, ["replicaSets", "replicasets"]);
   const pods = asArray(state.detail, ["pods"]);
+  const timelineEvents = state.events
+    .map((event, index) => {
+      const timestamp = getEventTimestamp(event);
+      return {
+        event,
+        index,
+        timestamp,
+      };
+    })
+    .sort((a, b) => {
+      if (a.timestamp === null && b.timestamp === null) return a.index - b.index;
+      if (a.timestamp === null) return 1;
+      if (b.timestamp === null) return -1;
+      if (a.timestamp === b.timestamp) return a.index - b.index;
+      return b.timestamp - a.timestamp;
+    });
   const confirmationMatches = confirmation === service;
 
   async function handleScale(replicas) {
@@ -350,14 +366,25 @@ export function AdminServiceDetailPage() {
 
               <article className="rounded-xl border bg-background p-4">
                 <p className="mb-2 font-medium">Recent Events</p>
-                {state.events.length > 0 ? (
-                  <div className="space-y-2 text-sm text-muted-foreground">
-                    {state.events.slice(0, 8).map((event, index) => (
-                      <div key={`${event.reason || "event"}-${index}`} className="rounded-md border p-2">
-                        <p className="font-medium text-foreground">
-                          {getValue(event, ["reason", "type", "name"], "Event")}
-                        </p>
-                        <p>{getValue(event, ["message", "note"], "No message")}</p>
+                {timelineEvents.length > 0 ? (
+                  <div className="relative space-y-4 pl-6">
+                    <span aria-hidden className="absolute bottom-2 left-2 top-2 w-px bg-border" />
+                    {timelineEvents.slice(0, 12).map((item) => (
+                      <div key={`${getValue(item.event, ["reason", "type", "name"], "event")}-${item.index}`} className="relative">
+                        <span aria-hidden className="absolute -left-[10px] top-[11px] h-px w-[10px] bg-border" />
+                        <span
+                          aria-hidden
+                          className="absolute -left-[22px] top-1.5 h-3 w-3 rounded-full border border-primary/40 bg-background"
+                        />
+                        <div className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">
+                          <p className="font-medium text-foreground break-words">
+                            {getValue(item.event, ["reason", "type", "name"], "Event")}
+                          </p>
+                          <p className="mt-1 break-words">{getValue(item.event, ["message", "note"], "No message")}</p>
+                          <p className="mt-2 text-xs text-muted-foreground/90">
+                            {`Time: ${formatEventTimestamp(item.timestamp)}`}
+                          </p>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -503,4 +530,16 @@ function ServiceHealthRow({ deployment }) {
       </div>
     </div>
   );
+}
+
+function getEventTimestamp(event = {}) {
+  const rawTimestamp = getValue(event, ["lastTimestamp", "eventTime", "created_at", "createdAt"], "");
+  if (!rawTimestamp) return null;
+  const parsed = new Date(rawTimestamp).getTime();
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function formatEventTimestamp(timestamp) {
+  if (timestamp === null) return "Unknown time";
+  return formatDate(new Date(timestamp).toISOString());
 }

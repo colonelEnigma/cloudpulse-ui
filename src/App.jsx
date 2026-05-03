@@ -95,7 +95,7 @@ function ProductCard({ product }) {
         <p className="text-base font-semibold">${price.toFixed(2)}</p>
         <Button
           type="button"
-          className="w-full"
+          className="w-full cursor-pointer"
           onClick={() => {
             addToCart(product);
             notify(`${product.name} added to cart`);
@@ -207,15 +207,16 @@ function ProductsPage() {
           <p className="text-sm text-muted-foreground">Browse by category</p>
           <div className="flex flex-wrap gap-2">
             {categories.map((category) => (
-              <Button
-                key={category}
-                type="button"
-                variant={selectedCategory === category ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedCategory(category)}
-              >
-                {category}
-              </Button>
+                <Button
+                  key={category}
+                  type="button"
+                  variant={selectedCategory === category ? "default" : "outline"}
+                  size="sm"
+                  className="cursor-pointer"
+                  onClick={() => setSelectedCategory(category)}
+                >
+                  {category}
+                </Button>
             ))}
           </div>
         </div>
@@ -706,11 +707,160 @@ function SignupPage() {
   );
 }
 
+function GlobalCartDock({ totalItems, hidden, onOpen }) {
+  if (hidden) return null;
+
+  return (
+    <button
+      type="button"
+      className="fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full border bg-card/95 px-4 py-2 text-sm font-medium shadow-lg backdrop-blur hover:bg-accent hover:text-accent-foreground md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:rounded-l-xl md:rounded-r-none md:px-3 md:py-3"
+      aria-label={`Open cart sidebar with ${totalItems} item${totalItems === 1 ? "" : "s"}`}
+      onClick={onOpen}
+    >
+      <span>Cart</span>
+      <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
+        {totalItems}
+      </span>
+    </button>
+  );
+}
+
+function CartSidebar({ open, onClose }) {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const { items, totalAmount, updateQuantity, removeFromCart, clearCart } = useCart();
+  const [checkoutState, setCheckoutState] = useState({
+    loading: false,
+    error: "",
+    success: "",
+  });
+
+  async function handleCheckout() {
+    if (!isAuthenticated) {
+      onClose();
+      navigate("/login");
+      return;
+    }
+
+    if (items.length === 0) return;
+
+    setCheckoutState({
+      loading: true,
+      error: "",
+      success: "",
+    });
+
+    const orderItems = items.map((item) => ({
+      product_id: item.id,
+      quantity: Number(item.quantity),
+    }));
+
+    try {
+      const order = await createOrder(orderItems);
+      const orderId = order.order_id;
+      const total = Number(order.total_amount || 0);
+
+      clearCart();
+      setCheckoutState({
+        loading: false,
+        error: "",
+        success: `Order #${orderId} created successfully. Total: $${total.toFixed(2)}.`,
+      });
+    } catch (orderError) {
+      setCheckoutState({
+        loading: false,
+        error: orderError.message || "Order creation failed. Please try again.",
+        success: "",
+      });
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Close cart"
+        className={`fixed inset-0 z-50 bg-black/45 transition-opacity ${open ? "opacity-100" : "pointer-events-none opacity-0"}`}
+        onClick={onClose}
+      />
+      <aside
+        className={`fixed inset-y-0 right-0 z-[60] w-full max-w-md border-l bg-card shadow-2xl transition-transform duration-300 ${open ? "translate-x-0" : "translate-x-full"}`}
+        aria-hidden={!open}
+      >
+        <div className="flex h-full flex-col">
+          <div className="flex items-center justify-between border-b px-4 py-3">
+            <div>
+              <p className="text-base font-semibold">Cart</p>
+              <p className="text-xs text-muted-foreground">{`${items.length} item${items.length === 1 ? "" : "s"}`}</p>
+            </div>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Close
+            </Button>
+          </div>
+
+          <div className="flex-1 space-y-3 overflow-y-auto p-4">
+            {items.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Your cart is empty.</p>
+            ) : (
+              items.map((item) => (
+                <article key={item.id} className="rounded-lg border bg-background p-3">
+                  <h2 className="text-sm font-medium">{item.name}</h2>
+                  <p className="text-xs text-muted-foreground">{item.category}</p>
+                  <p className="text-xs text-muted-foreground">{`$${Number(item.price).toFixed(2)} each`}</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <input
+                      className="h-9 w-20 rounded-md border bg-background px-2 text-sm"
+                      type="number"
+                      min="1"
+                      value={item.quantity}
+                      onChange={(event) => updateQuantity(item.id, event.target.value)}
+                    />
+                    <Button type="button" variant="outline" onClick={() => removeFromCart(item.id)}>
+                      Remove
+                    </Button>
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+
+          <div className="border-t p-4">
+            <p className="text-sm text-muted-foreground">Total</p>
+            <p className="text-2xl font-semibold">${totalAmount.toFixed(2)}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button
+                type="button"
+                onClick={handleCheckout}
+                disabled={checkoutState.loading || items.length === 0}
+              >
+                {checkoutState.loading ? "Processing checkout..." : "Checkout"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={clearCart}
+                disabled={checkoutState.loading || items.length === 0}
+              >
+                Clear cart
+              </Button>
+            </div>
+            {checkoutState.error ? <p className="mt-2 text-sm text-destructive">{checkoutState.error}</p> : null}
+            {checkoutState.success ? (
+              <p className="mt-2 text-sm text-emerald-600 dark:text-emerald-400">{checkoutState.success}</p>
+            ) : null}
+          </div>
+        </div>
+      </aside>
+    </>
+  );
+}
+
 export default function App() {
   const { isAuthenticated, user, role, logout } = useAuth();
   const { totalItems } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   useEffect(() => {
     function handleAuthExpired() {
@@ -726,9 +876,23 @@ export default function App() {
     };
   }, [logout, navigate, location.pathname]);
 
+  useEffect(() => {
+    document.body.style.overflow = isCartOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isCartOpen]);
+
   return (
     <ShopNoticeProvider>
-      <div className="min-h-screen bg-background text-foreground">
+      <div
+        className="min-h-screen bg-background text-foreground"
+        style={{
+          backgroundImage: "var(--app-texture)",
+          backgroundSize: "24px 24px, 32px 32px, 100% 100%",
+          backgroundAttachment: "fixed",
+        }}
+      >
         <AppHeader
           isAuthenticated={isAuthenticated}
           role={role}
@@ -819,6 +983,12 @@ export default function App() {
             <Route path="/signup" element={<SignupPage />} />
           </Routes>
         </main>
+        <GlobalCartDock
+          totalItems={totalItems}
+          hidden={false}
+          onOpen={() => setIsCartOpen(true)}
+        />
+        <CartSidebar open={isCartOpen} onClose={() => setIsCartOpen(false)} />
       </div>
     </ShopNoticeProvider>
   );

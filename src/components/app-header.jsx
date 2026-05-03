@@ -7,7 +7,7 @@ export function AppHeader({ isAuthenticated, role, userEmail, totalItems, onLogo
   const showAdminLink = role === "admin";
 
   return (
-    <header className="border-b bg-background/95 backdrop-blur">
+    <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
       <div className="mx-auto flex min-h-16 w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
         <div className="flex items-center gap-6">
           <Link to="/" className="text-sm font-semibold tracking-tight">
@@ -16,7 +16,6 @@ export function AppHeader({ isAuthenticated, role, userEmail, totalItems, onLogo
           <nav className="hidden items-center gap-4 text-sm text-muted-foreground sm:flex">
             <Link to="/">Home</Link>
             <Link to="/products">Products</Link>
-            <Link to="/cart">{`Cart (${totalItems})`}</Link>
             <Link to="/orders">Orders</Link>
             {showAdminLink ? <Link to="/admin">Admin</Link> : <span className="opacity-60">Admin</span>}
             {isAuthenticated ? (
@@ -42,7 +41,6 @@ export function AppHeader({ isAuthenticated, role, userEmail, totalItems, onLogo
         <nav className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
           <Link to="/">Home</Link>
           <Link to="/products">Products</Link>
-          <Link to="/cart">{`Cart (${totalItems})`}</Link>
           <Link to="/orders">Orders</Link>
           {showAdminLink ? <Link to="/admin">Admin</Link> : <span className="opacity-60">Admin</span>}
           {isAuthenticated ? (

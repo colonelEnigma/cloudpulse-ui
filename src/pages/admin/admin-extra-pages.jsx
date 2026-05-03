@@ -99,6 +99,22 @@ export function AdminIncidentsPage() {
     }
     load();
   }, [selectedService]);
+  const timelineEvents = state.events
+    .map((event, index) => {
+      const timestamp = getEventTimestamp(event);
+      return {
+        event,
+        index,
+        timestamp,
+      };
+    })
+    .sort((a, b) => {
+      if (a.timestamp === null && b.timestamp === null) return a.index - b.index;
+      if (a.timestamp === null) return 1;
+      if (b.timestamp === null) return -1;
+      if (a.timestamp === b.timestamp) return a.index - b.index;
+      return b.timestamp - a.timestamp;
+    });
 
   return (
     <AdminShell title="Incidents" subtitle="Alerts, healing history, and service events">
@@ -127,12 +143,34 @@ export function AdminIncidentsPage() {
                 </p>
               </>
             )} />
-            <IncidentCard title="Service Events" items={state.events} render={(item) => (
-              <>
-                <p className="font-medium">{getValue(item, ["reason", "type", "name"], "Event")}</p>
-                <p className="text-xs text-muted-foreground">{getValue(item, ["message", "note"], "No message")}</p>
-              </>
-            )} />
+            <article className="rounded-xl border bg-background p-4">
+              <p className="mb-2 font-medium">Service Events</p>
+              {timelineEvents.length ? (
+                <div className="relative space-y-2 pl-4">
+                  <span aria-hidden className="absolute bottom-2 left-0 top-2 w-px bg-border" />
+                  {timelineEvents.slice(0, 12).map((item, idx) => (
+                    <div key={`Service Events-${idx}`} className="relative rounded-md border p-2 text-sm">
+                      <span aria-hidden className="absolute -left-[10px] top-[13px] h-px w-[10px] bg-border" />
+                      <span
+                        aria-hidden
+                        className="absolute -left-[21px] top-3 h-2.5 w-2.5 rounded-full border border-primary/40 bg-background"
+                      />
+                      <p className="font-medium break-words">
+                        {getValue(item.event, ["reason", "type", "name"], "Event")}
+                      </p>
+                      <p className="text-xs text-muted-foreground break-words">
+                        {getValue(item.event, ["message", "note"], "No message")}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground/90">
+                        {`Time: ${formatEventTimestamp(item.timestamp)}`}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No items.</p>
+              )}
+            </article>
           </div>
         </AdminState>
       </div>
@@ -472,12 +510,12 @@ export function AdminAiPage() {
   );
 }
 
-function IncidentCard({ title, items, render }) {
+function IncidentCard({ title, items, render, limit = 8 }) {
   return (
     <article className="rounded-xl border bg-background p-4">
       <p className="mb-2 font-medium">{title}</p>
       <div className="space-y-2">
-        {items.slice(0, 8).map((item, idx) => (
+        {items.slice(0, limit).map((item, idx) => (
           <div key={`${title}-${idx}`} className="rounded-md border p-2 text-sm">
             {render(item)}
           </div>
@@ -506,4 +544,16 @@ function formatValue(value) {
   if (value === null || value === undefined || value === "") return "N/A";
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
+}
+
+function getEventTimestamp(event = {}) {
+  const rawTimestamp = getValue(event, ["lastTimestamp", "eventTime", "created_at", "createdAt"], "");
+  if (!rawTimestamp) return null;
+  const parsed = new Date(rawTimestamp).getTime();
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function formatEventTimestamp(timestamp) {
+  if (timestamp === null) return "Unknown time";
+  return formatDate(new Date(timestamp).toISOString());
 }

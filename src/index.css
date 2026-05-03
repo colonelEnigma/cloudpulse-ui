@@ -24,6 +24,10 @@
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
   --radius: 0.625rem;
+  --app-texture:
+    radial-gradient(circle at 20% 20%, oklch(0 0 0 / 0.085) 0.9px, transparent 1px),
+    radial-gradient(circle at 80% 30%, oklch(0 0 0 / 0.07) 0.8px, transparent 0.95px),
+    linear-gradient(oklch(0.992 0 0 / 0.96), oklch(0.98 0 0 / 0.96));
 }
 
 .dark {
@@ -46,6 +50,10 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
+  --app-texture:
+    radial-gradient(circle at 22% 18%, oklch(1 0 0 / 0.06) 0.7px, transparent 0.8px),
+    radial-gradient(circle at 78% 28%, oklch(1 0 0 / 0.05) 0.7px, transparent 0.8px),
+    linear-gradient(oklch(0.145 0 0 / 0.96), oklch(0.145 0 0 / 0.96));
 }
 
 @theme inline {
@@ -81,5 +89,8 @@
   body {
     font-family: "Geist", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     @apply bg-background text-foreground antialiased;
+    background-image: var(--app-texture);
+    background-size: 24px 24px, 32px 32px, 100% 100%;
+    background-attachment: fixed;
   }
 }
